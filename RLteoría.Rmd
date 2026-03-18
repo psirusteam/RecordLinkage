@@ -2,8 +2,10 @@
 title: "Introducción a los modelos de Record Linkage"
 author: "Andrés Gutiérrez^{CEPAL}"
 output:
-  pdf_document: default
-  html_document: default
+  html_document:
+    toc: true
+    toc_float: true
+    theme: cosmo
 ---
 
 

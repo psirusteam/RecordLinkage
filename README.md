@@ -1,12 +1,13 @@
 # RecordLinkage GitHub Pages
 
-Este repositorio quedó preparado para publicar una página de GitHub Pages a partir del archivo `RLteoría.Rmd`.
+En este repositorio estoy escribiendo toda la teoría y práctica del record linkage en relación a los siguientes tres hitos:
 
-## Cómo publicarla
+1.  El modelo de comparación de pares de Fellegi-Sunter (1969)
+2.  El modelo de matching con errores de medición en las covariables (Hit-Miss) de Copas y Hilton (1990)
+3.  El modelo de matching bipartito de Sadinle (2014)
 
-1. Sube estos cambios a GitHub.
-2. En el repositorio, entra a **Settings > Pages**.
-3. En **Build and deployment**, selecciona **GitHub Actions** como fuente.
-4. Haz un push a `main` o `master` (o ejecuta manualmente el workflow desde la pestaña **Actions**).
+El repositorio es un intento de explicación introductoria de estos modelos desde un punto de vista estadístico-matemático con un enfoque de inferencia bayesiana, por lo que los códigos computacionales y los modelos estadísticos están escritos en el software STAN.
 
-El workflow `.github/workflows/render-gh-pages.yml` renderiza `RLteoría.Rmd` como `index.html` y lo publica automáticamente en GitHub Pages.
+La página web de este repositorio es:
+
+<https://psirusteam.github.io/RecordLinkage/>

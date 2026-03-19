@@ -7,7 +7,7 @@ rmarkdown::render(
 
 rmarkdown::render(
   input = "RLteoría.Rmd",
-  output_format = "beamer_presentation",
-  output_file = "RLteoria-beamer.pdf",
+  output_format = "pdf_document",
+  output_file = "RLteoria.pdf",
   encoding = "UTF-8"
 )

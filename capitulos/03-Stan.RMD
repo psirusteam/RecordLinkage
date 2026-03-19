@@ -1,12 +1,16 @@
 # Implementación paso a paso en `RecordLinkage.r`
 
-En este capítulo descompongo el archivo `RecordLinkage.r` en bloques lógicos para mostrar qué hace cada parte del código y por qué es necesaria dentro de un flujo simple de *record linkage* bayesiano. La idea no es solamente ejecutar el script, sino también entender cómo se construye el ejemplo: desde la simulación de datos hasta el cálculo de probabilidades posteriores de *match*.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE)
+```
 
-## 1. Carga de librerías y configuración inicial
+En este capítulo descompongo el archivo `FellegiSunter.r` en bloques lógicos para mostrar qué hace cada parte del código y por qué es necesaria dentro de un flujo simple de *record linkage* bayesiano. 
+
+## Carga de librerías y configuración inicial
 
 El script comienza limpiando el entorno de trabajo, cargando las librerías necesarias y definiendo algunas opciones para que STAN pueda compilar y ejecutar el modelo de manera más eficiente.
 
-```{r stan-paso-1-librerias, echo=TRUE, eval=FALSE}
+```{r stan-paso-1-librerias, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 ############################################################
 # 1. Librerías
 ############################################################
@@ -22,20 +26,22 @@ options(mc.cores = parallel::detectCores())
 set.seed(123)
 ```
 
-### ¿Qué hace este bloque?
+El código comienza limpiando el entorno de trabajo mediante la función `rm(list = ls())`, lo que elimina todos los objetos existentes en memoria y evita que resultados previos interfieran con la ejecución actual. A continuación, se cargan las librerías necesarias: `library(rstan)` permite utilizar STAN desde R para ajustar modelos bayesianos, mientras que `library(fastLink)` incorpora una implementación ya existente de record linkage, lo que resulta útil para comparar su desempeño con el modelo que se desarrollará en STAN.
 
-- `rm(list = ls())` elimina los objetos existentes en memoria para evitar que resultados previos interfieran con la ejecución actual.
-- `library(rstan)` carga la interfaz de R para STAN, que se usará para ajustar el modelo bayesiano.
-- `library(fastLink)` incorpora una implementación ya existente de *record linkage*, útil para comparar su desempeño con el modelo en STAN.
-- `rstan_options(auto_write = TRUE)` permite reutilizar archivos compilados por STAN y acelerar ejecuciones posteriores.
-- `options(mc.cores = parallel::detectCores())` habilita el uso de todos los núcleos disponibles para correr varias cadenas en paralelo.
-- `set.seed(123)` fija la semilla aleatoria, garantizando reproducibilidad.
+Posteriormente, se configuran algunas opciones clave para mejorar la eficiencia y reproducibilidad del análisis. La instrucción `rstan_options(auto_write = TRUE)` permite reutilizar archivos compilados por STAN, reduciendo significativamente los tiempos de ejecución en corridas posteriores. Por su parte, `options(mc.cores = parallel::detectCores())` habilita el uso de todos los núcleos disponibles del procesador, lo que facilita la ejecución paralela de múltiples cadenas MCMC. Finalmente, `set.seed(123)` fija la semilla aleatoria, garantizando que los resultados obtenidos puedan reproducirse exactamente en futuras ejecuciones.
 
-## 2. Construcción de las bases `A` y `B`
+## Construcción de los listados que serán emparejados
 
-Luego se generan dos listas de registros. La base `A` representa un primer archivo y la base `B` un segundo archivo. Una parte de `B` se construye para que contenga coincidencias reales con `A`, mientras que otra parte agrega registros extra que no necesariamente tienen correspondencia.
+Luego se generan dos listas de registros. La base `A` representa un primer archivo y la base `B` un segundo archivo. Una parte de `B` se construye para que contenga coincidencias reales con `A`, mientras que otra parte agrega registros extra que no necesariamente tienen correspondencia. Es decir, se construye un conjunto de datos sintético que simula dos bases de información a ser vinculadas. Primero se define el tamaño de ambas listas, donde `A` contiene 50 registros y `B` contiene 60. Luego se crean catálogos simples de nombres, apellidos y sexo, los cuales sirven como insumos para generar variables de identificación. A partir de estos catálogos, se construye la base `A` como un conjunto de datos sintético que incluye un identificador único, nombre, apellido, edad y sexo para cada individuo.
 
-```{r stan-paso-2-listas, echo=TRUE, eval=FALSE}
+A continuación, se introduce un mecanismo controlado de coincidencias reales entre ambas bases. Se define que los primeros 30 registros de `B` corresponden verdaderamente a los primeros 30 registros de `A`. Para ello:
+
+1. Se construye `B_match` copiando esos registros, pero incorporando una pequeña perturbación en la variable edad de -1, 0 o 1, con el fin de imitar errores o variaciones típicas entre fuentes de datos.
+2. Luego se genera `B_extra` con registros adicionales independientes que no tienen correspondencia en `A`, y finalmente se concatenan ambas partes para formar la base final `B`. 
+
+En esencia, este procedimiento crea un escenario controlado en el que se conoce la verdad subyacente, lo que resulta especialmente útil para evaluar si el método de record linkage es capaz de recuperar correctamente las coincidencias reales.
+
+```{r stan-paso-2-listas, echo=TRUE}
 ############################################################
 # 2. Crear listas A y B
 ############################################################
@@ -79,17 +85,15 @@ B_extra <- data.frame(
 B <- rbind(B_match,B_extra)
 ```
 
-### ¿Qué hace este bloque?
+A continuación se muestran los primeros seis registros de ambos listados.
 
-- Define el tamaño de ambas listas: `A` tiene 50 registros y `B` tiene 60.
-- Crea catálogos simples de nombres, apellidos y sexo para simular variables de identificación.
-- Genera `A` como una base de datos sintética con identificador, nombre, apellido, edad y sexo.
-- Fija `n_match_true <- 30`, lo que significa que los primeros 30 registros de `B` serán coincidencias reales con los primeros 30 registros de `A`.
-- Construye `B_match` copiando esos 30 registros de `A`, aunque introduce una pequeña perturbación en `edad` de `-1`, `0` o `1`, imitando errores o variaciones típicas entre bases.
-- Construye `B_extra` con registros adicionales independientes.
-- Finalmente concatena ambas partes en `B`.
+```{r}
+head(A)
+head(B)
+```
 
-En otras palabras, aquí se prepara un escenario controlado en el que sí conocemos la verdad subyacente. Esto es muy útil para evaluar si el procedimiento logra recuperar las coincidencias reales.
+
+
 
 ## 3. Generación de todos los pares posibles
 

@@ -1,0 +1,301 @@
+# El modelo de Fellegi-Sunter
+
+El enfoque probabilístico modela esta decisión utilizando probabilidades en lugar de reglas determinísticas. Para cada par construimos un **vector de comparaciones**:
+
+\[
+X_i = (X_{i1}, X_{i2}, ..., X_{iK})
+\]
+
+En donde, \(K\) representa el número de variables que se utilizan en la comparación, \(X_{ik}\) es un indicador de coincidencia en la variable \(k\), definido por:
+
+\[
+X_{ik} =
+\begin{cases}
+1 & \text{si hay coincidencia} \\
+0 & \text{si no coincide}
+\end{cases}
+\]
+
+Por ejemplo, si se consideran tres variables de comparación (nombre, apellido y fecha de nacimiento ) y $X_i = (1,1,0)$, es porque, para ese par específico hay coincidencia en las primeras dos variables (nombre y apellido), pero no en la última (fecha de nacimiento).
+
+En las aplicaciones prácticas nunca sabremos si una entidad en una lista realmente coincide con otra entidad en otra lista, por eso es necesario crear una variable latente que pueda modelar este proceso de identificación. De esta forma, para cada par, introducimos la variable no observable, $Z_i$, definida así:
+
+\[
+Z_i =
+\begin{cases}
+1 & \text{si el par es match} \\
+0 & \text{si el par no es match}
+\end{cases}
+\]
+
+Por tanto, nuestro objetivo será calcular la probabilidad de que un par de registros corresponda a la misma entidad (match) $\pi = P(Z=1)$. Como estamos involucrando un conjunto de variables de comparación, entonces para cada par debemos calcular la probabilidad condicionada a $X_i$, así:
+
+\[
+P(Z_i = 1 | X_i)
+\]
+
+Esto es, la probabilidad de que dos registros correspondan a la misma persona dado su patrón de coincidencias. En muchos contextos se espera que esta probabilidad sea pequeña, porque la mayoría de los pares posibles no corresponderán al mismo registro.
+
+En el modelo probabilístico de record linkage, cada variable de comparación puede tener un comportamiento distinto en términos de su capacidad para coincidir cuando dos registros pertenecen realmente a la misma entidad. Por esta razón, el modelo introduce un parámetro específico para cada variable:
+
+\[
+m_k = P(X_k=1 | Z=1)
+\]
+
+Estos parámetros representan la probabilidad de coincidencia cuando el par sí es match. La razón por la cual cada variable tiene asociada su propio parámetro es que no todas las variables son igual de confiables ni presentan los mismos niveles de error o variabilidad en las bases de datos. Por ejemplo:
+
+1. El nombre puede coincidir en la mayoría de los casos cuando se trata de la misma persona, pero puede haber discrepancias debido a errores de digitación. Por esta razón, podríamos tener una probabilidad como $m_{nombre} = 0.9$. Esto significa que incluso cuando los registros corresponden a la misma persona, existe un 10% de probabilidad de que los nombres no coincidan exactamente.
+2. Los apellidos suelen ser más estables que los nombres, aunque todavía pueden ocurrir discrepancias debido a errores de digitación, o diferencias en acentuación ("Pérez" vs "Perez"). Debido a esta mayor estabilidad, podría ser razonable que $m_{apellido} = 0.9$. Lo que indica que solo en un 5% de los casos habría discrepancia incluso cuando se trata de la misma persona.
+3. La fecha de nacimiento suele ser una variable altamente informativa y relativamente estable. Cuando los registros corresponden a la misma persona, lo normal es que coincida exactamente. Sin embargo, pueden existir errores debido a formatos distintos de fecha ("03/11/1988" vs "11/03/1988"). Si estos errores son menos frecuentes, podríamos tener $m_{fecha}=0.98$. Lo que indicaría que solo en un 2% de los casos habría discrepancia incluso cuando los registros son realmente del mismo individuo.
+
+| Variable | \(m_k\) |
+|------|------|
+| nombre | 0.90 |
+| apellido | 0.95 |
+| fecha nacimiento | 0.98 |
+
+Ahora, asumiendo independencia entre variables, se tiene que:
+
+\[
+P(X|Z=1) =
+\prod_{k=1}^{K}
+m_k^{X_k}(1-m_k)^{1-X_k}
+\]
+
+De manera análoga, el modelo de record linkage introduce otro conjunto de probabilidades que describen el comportamiento de las variables cuando los registros pertenecen a personas distintas. Estas probabilidades se definen como:
+
+\[
+u_k = P(X_k=1 | Z=0)
+\]
+
+Los cuales son probabilidades que representan coincidencias por azar, dado que el par no corresponde a la misma entidad. Por ejemplo:
+
+1. Incluso cuando dos registros corresponden a personas diferentes, puede ocurrir que tengan el mismo nombre. Esto sucede porque muchos nombres son relativamente comunes. En este contexto, podríamos tener $u_{nombre}=0.05$. Esto significa que aproximadamente un 5% de los pares de personas distintas podrían coincidir en el nombre. Aunque si la base de datos incluye nombres muy comunes, este valor de podría ser relativamente alto.
+2. Los apellidos suelen ser más informativos que los nombres, especialmente en poblaciones donde la diversidad de apellidos es mayor. Sin embargo, todavía pueden existir coincidencias por azar (múltiples personas con apellido "García"); por tanto podríamos tener $u_{apellido}=0.02$. Esto indica que alrededor del 2% de los pares de personas distintas coincidirían en el apellido.
+3. La fecha de nacimiento suele ser una variable muy discriminante. La probabilidad de que dos personas distintas compartan exactamente la misma fecha de nacimiento es relativamente baja, especialmente si se considera día, mes y año completos. Por ejemplo, podríamos tener $u_{fecha}=0.01$. Esto significa que solo en aproximadamente el 1% de los pares de personas diferentes se observaría coincidencia exacta en la fecha de nacimiento.
+
+
+| Variable | \(u_k\) |
+|------|------|
+| nombre | 0.05 |
+| apellido | 0.02 |
+| fecha nacimiento | 0.01 |
+
+Una vez más, asumiendo independencia entre variables, se tiene que:
+
+$$
+P(X|Z=0) =
+\prod_{k=1}^{K}
+u_k^{X_k}(1-u_k)^{1-X_k}
+$$
+
+## La razón de verosimilitudes como regla decisión
+
+Desde un punto de vista frecuentista, el estadístico central del modelo de Fellegi-Sunter es la razón de verosimilitudes, dada por la siguiente expresión
+
+$$
+\Lambda(X) =
+\frac{P(X \mid Z=1)}
+{P(X \mid Z=0)} =
+\frac{
+\prod_{k=1}^{K} m_k^{X_k}(1-m_k)^{1-X_k}
+}{
+\prod_{k=1}^{K} u_k^{X_k}(1-u_k)^{1-X_k}
+} 
+$$
+
+Es posible demostrar que la regla de decisión óptima consiste en clasificar los pares utilizando este estadístico. Nótese que cuando se comparan varias variables, es posible que las productorias en $P(X \mid Z=1)$ y $P(X \mid Z=0)$ se acerquen a cero, y que se tengan problemas de numéricos de convergencia computacional (underflow). Por esta razón, es usual trabajar en escala logarítmica, Si sustituimos las expresiones anteriores, se obtiene nuevamente un producto de términos asociados a cada variable de comparación. Sin embargo, resulta más conveniente trabajar en escala logarítmica, ya que el logaritmo transforma las productorias en sumatorias, evitando problemas de magnitud computacional. En efecto, acudiendo a las reglas del logaritmo, y después de un poco de álgebra, se tiene que
+
+$$
+\log \Lambda(X)
+=
+\sum_{k=1}^{K}
+\left[
+X_k\log\left(\frac{m_k}{u_k}\right)
++
+(1-X_k)\log\left(\frac{1-m_k}{1-u_k}\right)
+\right].
+$$
+
+De esta forma, la evidencia aportada por cada variable puede interpretarse como un peso, y el estadístico total se obtiene simplemente sumando los pesos asociados a los acuerdos y desacuerdos observados. En particular, para cada variable $k$ se definen los pesos:
+
+\begin{align*}
+w_k^{(Z=1)} &= \log\left(\frac{m_k}{u_k}\right) \\
+w_k^{(Z=0)} &= \log\left(\frac{1-m_k}{1-u_k}\right)
+\end{align*}
+
+De esta manera, cada variable de comparación aporta una cierta cantidad de evidencia a favor o en contra de que el par de registros corresponda a la misma entidad. Esta evidencia se resume mediante los pesos definidos anteriormente. Al combinar la información proveniente de todas las variables consideradas, se obtiene un peso total que sintetiza la evidencia global del par, el cual se expresa como
+
+$$
+W(X)=\sum_{k=1}^{K} w_k.
+$$
+
+Este estadístico resume la información contenida en el vector de comparaciones $X$ y permite ordenar los pares de registros de acuerdo con la evidencia de que correspondan a la misma entidad. Valores altos de $W(X)$ indican una mayor probabilidad de que el par sea un match, mientras que valores bajos sugieren que se trata de registros correspondientes a entidades distintas.
+
+A partir de este estadístico, el modelo de Fellegi–Sunter propone una regla de decisión basada en dos umbrales. En particular, se definen dos valores $T_U$ y $T_M$ que permiten clasificar los pares de registros en tres posibles categorías: matches, non-matches o pares que requieren revisión manual. Formalmente, la regla de decisión se expresa como
+
+$$
+\begin{cases}
+W(X) \ge T_M & \text{clasificar como match} \\
+W(X) \le T_U & \text{clasificar como non-match} \\
+T_U < W(X) < T_M & \text{revisión clerical}
+\end{cases}
+$$
+
+La presencia de una región intermedia responde al hecho de que, en algunos casos, la evidencia disponible no es suficientemente concluyente para tomar una decisión automática. En esas situaciones, el modelo recomienda que los pares sean evaluados mediante una revisión manual. Finalmente, los valores de los umbrales se determinan de modo que se controlen explícitamente las probabilidades de error del procedimiento de clasificación. En particular, el modelo considera dos tipos de error:
+
+- **Error tipo I:** clasificar un *non-match* como *match*.
+- **Error tipo II:** clasificar un *match* como *non-match*.
+
+La elección de los umbrales $T_U$ y $T_M$ permite equilibrar estos errores y establecer un compromiso entre la tasa de clasificaciones automáticas y la necesidad de revisión manual de los pares ambiguos.
+
+## Probabilidad posterior de emparejamiento
+
+El objetivo del modelo es calcular la probabilidad de que el par sea un match dado el patrón observado de coincidencias en la variables de comparación. Esto se expresa como
+
+\[
+P(Z=1 \mid X)
+\]
+
+Y se conoce como la probabilidad posterior de match. Su interpretación es sencilla: dado el patrón de coincidencias entre los registros, $P(Z=1 \mid X)$ representa la probabilidad de que correspondan a la misma persona. Para calcular esta probabilidad es necesario recurrir a la regla de Bayes, la cual establece que:
+
+\[
+P(Z=1|X)=
+\frac{P(X|Z=1)P(Z=1)}{P(X)}
+\]
+
+En donde $P(Z=1)$ es la probabilidad previa de emparejamiento, que representa la probabilidad de que un par de registros sea un match antes de observar las variables de comparación. Esta cantidad suele ser pequeña porque la mayoría de los pares posibles corresponden a personas diferentes. Además, $P(X)$, la probabilidad marginal del patrón, representa la probabilidad total de observar el patrón de coincidencias $X$, que, acudiendo al teorema de probabilidad total, se escribe de la siguiente manera:
+
+\[
+P(X) =
+P(X|Z=1)P(Z=1) +
+P(X|Z=0)P(Z=0)
+\]
+
+En donde
+
+\[
+P(Z=0) = 1 - P(Z=1)
+\]
+
+Por ende, notando que $\pi = P(Z=1)$, y sustituyendo la expresión de $P(X)$ en el teorema de Bayes, se obtiene:
+
+\[
+P(Z=1|X)=
+\frac{\pi P(X|Z=1)}
+{\pi P(X|Z=1) + (1-\pi)P(X|Z=0)}
+\]
+
+Si el patrón observado es mucho más probable bajo el modelo de match, entonces $P(Z=1|X)$ será cercano a 1; si el patrón es más probable bajo el modelo de no-match, la probabilidad posterior será cercana a 0. Este cálculo permite transformar el patrón de coincidencias entre registros en una probabilidad cuantitativa de que el par sea un match y corresponde a la base del modelo probabilístico de **Fellegi–Sunter** y de muchos algoritmos modernos de record linkage.
+
+## Ejemplo
+
+Supongamos que tenemos dos listas, como se describe a continuación:
+
+| idA | nombre | apellido | fecha_nac |
+|---|---|---|---|
+| A1 | Juan | Pérez | 1990-05-10 |
+| A2 | María | Gómez | 1988-11-03 |
+
+
+| idB | nombre | apellido | fecha_nac |
+|---|---|---|---|
+| B1 | Juan | Pérez | 1990-05-10 |
+| B2 | María | Gómez | 1987-11-03 |
+| B3 | Carlos | López | 1992-07-21 |
+
+El primer paso es construir **todos los pares posibles** entre las dos listas. Como la lista A tiene 2 registros y la lista B tiene 3 registros, entonces el número total de pares es $2 \times 3 = 6$ y la tabla de todos los posibles pares es:
+
+| idA | idB | nombre_A | nombre_B | apellido_A | apellido_B | fnac_A | fnac_B |
+|---|---|---|---|---|---|---|---|
+| A1 | B1 | Juan | Juan | Pérez | Pérez | 1990-05-10 | 1990-05-10 |
+| A1 | B2 | Juan | María | Pérez | Gómez | 1990-05-10 | 1987-11-03 |
+| A1 | B3 | Juan | Carlos | Pérez | López | 1990-05-10 | 1992-07-21 |
+| A2 | B1 | María | Juan | Gómez | Pérez | 1988-11-03 | 1990-05-10 |
+| A2 | B2 | María | María | Gómez | Gómez | 1988-11-03 | 1987-11-03 |
+| A2 | B3 | María | Carlos | Gómez | López | 1988-11-03 | 1992-07-21 |
+
+En una segunda instancia, transformamos las variables originales en variables de comparación binarias para crear la matriz $X$, así:
+
+| idA | idB | nombre_match | apellido_match | fnac_match |
+|---|---|---|---|---|
+| A1 | B1 | 1 | 1 | 1 |
+| A1 | B2 | 0 | 0 | 0 |
+| A1 | B3 | 0 | 0 | 0 |
+| A2 | B1 | 0 | 0 | 0 |
+| A2 | B2 | 1 | 1 | 0 |
+| A2 | B3 | 0 | 0 | 0 |
+
+De esta forma, cada par tiene un vector de comparación
+
+$$
+X_i = (x_{i1}, x_{i2}, x_{i3})
+$$
+
+Además, supongamos que la probabilidad a priori de que un par de registros corresponda a la misma entidad es $\pi = 0.2$ y que se cuenta con los siguientes valores para los parámetros del modelo de emparejamiento, que representan las probabilidades de acuerdo entre variables cuando los registros sí corresponden a la misma entidad ($m_k$) y cuando no corresponden a la misma entidad ($u_k$)::
+
+| Variable | $m_k$ | $u_k$ |
+|---|---|---|
+nombre | 0.9 | 0.1 |
+apellido | 0.9 | 0.1 |
+fecha nacimiento | 0.8 | 0.05 |
+
+Consideremos ahora el par A2–B2. Para este par se observa el vector de comparaciones $X_2 = (1,1,0)$, lo que significa que coinciden el nombre y el apellido, pero no coincide la fecha de nacimiento. A partir de los parámetros del modelo, es posible calcular la probabilidad de observar ese patrón de coincidencias bajo cada uno de los dos posibles estados: que los registros correspondan a la misma entidad ($Z=1$) o que correspondan a entidades distintas ($Z=0$). 
+
+Asimismo, los pesos de Fellegi–Sunter son los siguientes:
+
+| Variable         | $m_k$ | $u_k$ | Peso acuerdo $w_k^{(1)}$ | Peso desacuerdo $w_k^{(0)}$ |
+|------------------|------:|------:|-------------------------:|-----------------------------:|
+| nombre           | 0.9   | 0.1   | $\log(9)=2.197$          | $\log(0.111)=-2.197$         |
+| apellido         | 0.9   | 0.1   | $\log(9)=2.197$          | $\log(0.111)=-2.197$         |
+| fecha nacimiento | 0.8   | 0.05  | $\log(16)=2.773$         | $\log(0.2105)=-1.558$        |
+
+Por ende, para el par A2–B2, cuyo vector de comparación es $X_2 = (1,1,0)$, el peso total sería
+
+$$
+W(X_2) = 2.197 + 2.197 - 1.558 = 2.836
+$$
+
+Y para todos los pares, tendríamos la siguiente tabla con su interpretación. 
+
+| Par   | Vector $X$ | Peso $W(X)$ | Score final | Interpretación    |
+| ----- | ---------- | ----------- | ----------- | ----------------- |
+| A1–B1 | (1,1,1)    | 7.167       | 5.781       | match casi seguro |
+| A1–B2 | (0,0,0)    | -5.952      | -7.338      | no match          |
+| A1–B3 | (0,0,0)    | -5.952      | -7.338      | no match          |
+| A2–B1 | (0,0,0)    | -5.952      | -7.338      | no match          |
+| A2–B2 | (1,1,0)    | **2.836**   | **1.450**   | match probable    |
+| A2–B3 | (0,0,0)    | -5.952      | -7.338      | no match          |
+
+Ahora, desde un punto de vista probabilístico, también se obtienen las mismas conslusiones. En efecto, para el par A2-B2, se obtiene que:
+
+  - $P(X_2|Z=1) = m_1 \times m_2 \times (1-m_3) = 0.9 \times 0.9 \times 0.2 = 0.162$
+  - $P(X_2|Z=0) = u_1 \times u_2 \times (1-u_3) = 0.1 \times 0.1 \times 0.95 = 0.0095$.
+
+Una vez calculadas estas probabilidades, se puede aplicar la ecuación de la probabilidad posterior de match, que combina la evidencia observada en el vector de comparación con la probabilidad a priori $\pi$:
+
+\begin{align*}
+P(Z = 1 \mid X_2)
+=
+\frac{\pi P(X_2 \mid Z=1)}
+{\pi P(X_2 \mid Z=1)+(1-\pi)P(X_2 \mid Z=0)} 
+=
+\frac{0.2 \times 0.162}
+{0.2 \times 0.162 + 0.8 \times 0.0095} 
+= 0.81
+\end{align*}
+
+Es decir, la probabilidad de que este par de registros corresponda a la misma entidad es 0.81, lo que sugiere que se trata de un emparejamiento bastante plausible. De manera análoga, si se realiza este mismo cálculo para todos los posibles pares de registros entre las dos bases de datos, se obtiene la siguiente tabla de probabilidades de match:
+
+| Par | Vector $X$ | Probabilidad de match |
+|---|---|---|
+A1–B1 | (1,1,1) | **0.997** |
+A1–B2 | (0,0,0) | 0.00065 |
+A1–B3 | (0,0,0) | 0.00065 |
+A2–B1 | (0,0,0) | 0.00065 |
+A2–B2 | (1,1,0) | **0.81** |
+A2–B3 | (0,0,0) | 0.00065 |
+
+A partir de estos resultados, se observa que el modelo está identificando dos pares con probabilidades sustanciales de corresponder a la misma entidad: el par A1–B1 (match casi seguro) y el par A2–B2 (match probable). En contraste, los demás pares presentan probabilidades muy bajas, lo que indica que es muy poco probable que correspondan a la misma persona. 
+
+En la práctica, los algoritmos modernos aplican exactamente esta misma lógica, pero sobre millones de pares de registros, utilizando múltiples variables de comparación y técnicas computacionales que permiten realizar estos cálculos de manera eficiente.

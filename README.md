@@ -15,3 +15,16 @@ En síntesis, este repositorio debe entenderse como una especie de cuaderno de t
 El sitio web de este repositorio es:
 
 <https://psirusteam.github.io/RecordLinkage/>
+
+## Generación del sitio y del PDF
+
+El archivo principal `RLteoría.Rmd` ahora está preparado para generar dos salidas:
+
+- `index.html`, que puede publicarse en GitHub Pages.
+- `RLteoria.pdf`, un documento PDF descargable directamente desde la propia página web.
+
+Para compilar ambos artefactos, ejecute:
+
+```bash
+Rscript build_site.R
+```

@@ -28,8 +28,13 @@ jobs:
       - name: Set up Pandoc
         uses: r-lib/actions/setup-pandoc@v2
 
-      - name: Install R Markdown
-        run: Rscript -e "install.packages('rmarkdown', repos = 'https://cloud.r-project.org')"
+      - name: Restore cached R dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          cache: true
+          extra-packages: |
+            any::rmarkdown
+            any::knitr
 
       - name: Render RLteoría.Rmd to index.html
         run: Rscript -e "rmarkdown::render('RLteoría.Rmd', output_format = 'html_document', output_file = 'index.html', output_dir = '_site', clean = TRUE)"

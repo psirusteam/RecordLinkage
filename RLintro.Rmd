@@ -16,6 +16,13 @@ output:
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
+```{r pdf-download-link, echo=FALSE, results='asis'}
+if (knitr::is_html_output()) {
+  cat('<p><a href="RLteoria.pdf" download>Descargar el PDF generado</a></p>
+')
+}
+```
+
 En este repositorio me propongo desarrollar, de manera detallada y progresiva, tanto la teoría como algunos elementos prácticos del *record linkage*, tomando como eje tres hitos fundamentales en la literatura:
 
 1. El modelo clásico de comparación de pares de Fellegi-Sunter (1969)

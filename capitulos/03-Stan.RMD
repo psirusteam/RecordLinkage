@@ -92,32 +92,24 @@ head(A)
 head(B)
 ```
 
-
-
-
 ## 3. Generación de todos los pares posibles
 
 Una vez construidas las dos bases, el siguiente paso es formar el producto cartesiano entre `A` y `B`, es decir, todos los pares candidato que podrían compararse.
 
-```{r stan-paso-3-pares, echo=TRUE, eval=FALSE}
+```{r stan-paso-3-pares}
 ############################################################
 # 3. Crear todos los pares
 ############################################################
 
 pairs <- merge(A,B,by=NULL)
-
 N <- nrow(pairs)
 ```
 
-### ¿Qué hace este bloque?
+La instrucción `merge(A, B, by = NULL)` genera todos los pares posibles entre los registros de `A` y los registros de `B`, es decir, construye el producto cartesiano entre ambos conjuntos de datos. Como `A` tiene 50 filas y `B` tiene 60, entonces el número total de pares generados será 50 x 60 = 3000. A partir de este resultado, la expresión `N <- nrow(pairs)` permite almacenar ese total de pares, el cual será una de las entradas clave del modelo en STAN.
 
-- `merge(A, B, by = NULL)` genera todos los pares posibles entre registros de `A` y registros de `B`.
-- Si `A` tiene 50 filas y `B` tiene 60, entonces el número total de pares es `50 x 60 = 3000`.
-- `N <- nrow(pairs)` guarda ese total, porque será una de las entradas del modelo en STAN.
+Este paso es fundamental porque transforma el problema original de enlazar dos archivos en un problema de clasificación de pares: cada combinación posible de registros debe ser evaluada y clasificada como un posible match o non-match.
 
-Este paso transforma el problema de enlazar dos archivos en un problema de clasificación de pares: cada par debe ser considerado como posible *match* o *non-match*.
-
-## 4. Construcción de variables de comparación
+## Construcción de variables de comparación
 
 Después de formar todos los pares, el código compara campo por campo para resumir el nivel de acuerdo entre los registros. Estas comparaciones son justamente las variables que alimentan el modelo de Fellegi-Sunter.
 

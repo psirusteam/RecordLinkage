@@ -19,8 +19,8 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```{r enlace-pdf, results='asis', echo=FALSE}
 if (knitr::is_html_output()) {
   cat('<div style="margin: 1.5rem 0; padding: 1rem; background: #f8f9fa; border-left: 4px solid #0d6efd;">')
-  cat('<strong>Descargar presentación en PDF:</strong> ')
-  cat('<a href="RLteoria-beamer.pdf" download>Haga clic aquí para bajar la versión Beamer en PDF</a>.')
+  cat('<strong>Descargar documento en PDF:</strong> ')
+  cat('<a href="RLteoria.pdf" download>Haga clic aquí para descargar el archivo RLteoria.pdf</a>.')
   cat('</div>')
 }
 ```

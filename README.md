@@ -21,7 +21,7 @@ La página web de este repositorio es:
 El archivo principal `RLteoría.Rmd` ahora está preparado para generar dos salidas:
 
 - `index.html`, que puede publicarse en GitHub Pages.
-- `RLteoria-beamer.pdf`, una presentación Beamer descargable desde la propia página web.
+- `RLteoria.pdf`, un documento PDF descargable directamente desde la propia página web.
 
 Para compilar ambos artefactos, ejecute:
 

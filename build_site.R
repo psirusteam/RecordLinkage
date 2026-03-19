@@ -11,3 +11,7 @@ rmarkdown::render(
   output_file = "RLteoria.pdf",
   encoding = "UTF-8"
 )
+
+if (!file.exists(".nojekyll")) {
+  file.create(".nojekyll")
+}

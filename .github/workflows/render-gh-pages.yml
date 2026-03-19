@@ -22,22 +22,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up R
-        uses: r-lib/actions/setup-r@v2
-
-      - name: Set up Pandoc
-        uses: r-lib/actions/setup-pandoc@v2
-
-      - name: Restore cached R dependencies
-        uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          cache: true
-          extra-packages: |
-            any::rmarkdown
-            any::knitr
-
       - name: Render RLteoría.Rmd to index.html
-        run: Rscript -e "rmarkdown::render('RLteoría.Rmd', output_format = 'html_document', output_file = 'index.html', output_dir = '_site', clean = TRUE)"
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE":/workspace \
+            -w /workspace \
+            rocker/verse:4.4.1 \
+            Rscript -e "rmarkdown::render('RLteoría.Rmd', output_format = 'html_document', output_file = 'index.html', output_dir = '_site', clean = TRUE)"
 
       - name: Add .nojekyll
         run: touch _site/.nojekyll

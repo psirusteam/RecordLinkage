@@ -1,12 +1,16 @@
 # RecordLinkage GitHub Pages
 
-En este repositorio estoy escribiendo toda la teoría y práctica del record linkage en relación a los siguientes tres hitos:
+En este repositorio me propongo desarrollar, de manera detallada y progresiva, tanto la teoría como algunos elementos prácticos del *record linkage*, tomando como eje tres hitos fundamentales en la literatura:
 
-1.  El modelo de comparación de pares de Fellegi-Sunter (1969)
-2.  El modelo de matching con errores de medición en las covariables (Hit-Miss) de Copas y Hilton (1990)
-3.  El modelo de matching bipartito de Sadinle (2014)
+1. El modelo clásico de comparación de pares de Fellegi-Sunter (1969)
+2. El modelo de *matching* con errores de medición en las covariables (*Hit-Miss*) de Copas y Hilton (1990)
+3. El modelo de *matching* bipartito propuesto por Sadinle (2014)
 
-El repositorio es un intento de explicación introductoria de estos modelos desde un punto de vista estadístico-matemático con un enfoque de inferencia bayesiana, por lo que los códigos computacionales y los modelos estadísticos están escritos en el software STAN.
+Más que un manual exhaustivo o una referencia definitiva, este repositorio nace como un ejercicio personal: un intento de organizar, comprender y explicar estos modelos desde sus fundamentos estadísticos y matemáticos, motivado principalmente por mi curiosidad intelectual. En ese sentido, el énfasis está puesto en descomponer las ideas, hacer explícitas las suposiciones y recorrer paso a paso las estructuras probabilísticas que sustentan cada enfoque.
+
+El hilo conductor de esta exploración es la inferencia bayesiana, que permite unificar de manera natural los distintos modelos bajo un mismo marco conceptual. Por esta razón, además del desarrollo teórico, incluyo implementaciones computacionales que buscan reflejar fielmente las formulaciones probabilísticas. Dichas implementaciones están escritas en STAN, no sólo como herramienta de cálculo, sino también como un lenguaje que ayuda a traducir la teoría en modelos explícitos y reproducibles.
+
+En síntesis, este repositorio debe entenderse como una especie de cuaderno de trabajo extendido: un espacio donde la teoría, la modelación y la implementación dialogan constantemente, con el objetivo principal de profundizar en la comprensión del *record linkage* desde una perspectiva rigurosa pero también exploratoria.
 
 La página web de este repositorio es:
 

@@ -8,11 +8,17 @@ output:
     theme: cosmo
 ---
 
+En este repositorio me propongo desarrollar, de manera detallada y progresiva, tanto la teoría como algunos elementos prácticos del *record linkage*, tomando como eje tres hitos fundamentales en la literatura:
 
-El **record linkage** es el proceso de identificar registros que corresponden a la misma entidad (por ejemplo, la misma persona) en diferentes bases de datos. Su objetivo es determinar si un par de registros corresponde a:
+1. El modelo clásico de comparación de pares de Fellegi-Sunter (1969)
+2. El modelo de *matching* con errores de medición en las covariables (*Hit-Miss*) de Copas y Hilton (1990)
+3. El modelo de *matching* bipartito propuesto por Sadinle (2014)
 
-- **Match**: la misma entidad
-- **No match**: entidades diferentes
+Más que un manual exhaustivo o una referencia definitiva, este repositorio nace como un ejercicio personal: un intento de organizar, comprender y explicar estos modelos desde sus fundamentos estadísticos y matemáticos, motivado principalmente por mi curiosidad intelectual. En ese sentido, el énfasis está puesto en descomponer las ideas, hacer explícitas las suposiciones y recorrer paso a paso las estructuras probabilísticas que sustentan cada enfoque.
+
+El hilo conductor de esta exploración es la inferencia bayesiana, que permite unificar de manera natural los distintos modelos bajo un mismo marco conceptual. Por esta razón, además del desarrollo teórico, incluyo implementaciones computacionales que buscan reflejar fielmente las formulaciones probabilísticas. Dichas implementaciones están escritas en STAN, no sólo como herramienta de cálculo, sino también como un lenguaje que ayuda a traducir la teoría en modelos explícitos y reproducibles.
+
+En síntesis, este repositorio debe entenderse como una especie de cuaderno de trabajo extendido: un espacio donde la teoría, la modelación y la implementación dialogan constantemente, con el objetivo principal de profundizar en la comprensión del *record linkage* desde una perspectiva rigurosa pero también exploratoria.
 
 ```{r child='capitulos/01-fellegi-sunter.Rmd'}
 ```

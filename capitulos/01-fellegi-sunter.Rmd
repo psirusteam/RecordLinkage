@@ -1,5 +1,10 @@
 # El modelo de Fellegi-Sunter
 
+El **record linkage** es el proceso de identificar registros que corresponden a la misma entidad (por ejemplo, la misma persona) en diferentes bases de datos. Su objetivo es determinar si un par de registros corresponde a:
+
+- **Match**: la misma entidad
+- **No match**: entidades diferentes
+
 El enfoque probabilístico modela esta decisión utilizando probabilidades en lugar de reglas determinísticas. Para cada par construimos un **vector de comparaciones**:
 
 \[

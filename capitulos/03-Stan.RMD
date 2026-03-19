@@ -1,0 +1,470 @@
+# Implementación paso a paso en `RecordLinkage.r`
+
+En este capítulo descompongo el archivo `RecordLinkage.r` en bloques lógicos para mostrar qué hace cada parte del código y por qué es necesaria dentro de un flujo simple de *record linkage* bayesiano. La idea no es solamente ejecutar el script, sino también entender cómo se construye el ejemplo: desde la simulación de datos hasta el cálculo de probabilidades posteriores de *match*.
+
+## 1. Carga de librerías y configuración inicial
+
+El script comienza limpiando el entorno de trabajo, cargando las librerías necesarias y definiendo algunas opciones para que STAN pueda compilar y ejecutar el modelo de manera más eficiente.
+
+```{r stan-paso-1-librerias, echo=TRUE, eval=FALSE}
+############################################################
+# 1. Librerías
+############################################################
+
+rm(list = ls())
+
+library(rstan)
+library(fastLink)
+
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+
+set.seed(123)
+```
+
+### ¿Qué hace este bloque?
+
+- `rm(list = ls())` elimina los objetos existentes en memoria para evitar que resultados previos interfieran con la ejecución actual.
+- `library(rstan)` carga la interfaz de R para STAN, que se usará para ajustar el modelo bayesiano.
+- `library(fastLink)` incorpora una implementación ya existente de *record linkage*, útil para comparar su desempeño con el modelo en STAN.
+- `rstan_options(auto_write = TRUE)` permite reutilizar archivos compilados por STAN y acelerar ejecuciones posteriores.
+- `options(mc.cores = parallel::detectCores())` habilita el uso de todos los núcleos disponibles para correr varias cadenas en paralelo.
+- `set.seed(123)` fija la semilla aleatoria, garantizando reproducibilidad.
+
+## 2. Construcción de las bases `A` y `B`
+
+Luego se generan dos listas de registros. La base `A` representa un primer archivo y la base `B` un segundo archivo. Una parte de `B` se construye para que contenga coincidencias reales con `A`, mientras que otra parte agrega registros extra que no necesariamente tienen correspondencia.
+
+```{r stan-paso-2-listas, echo=TRUE, eval=FALSE}
+############################################################
+# 2. Crear listas A y B
+############################################################
+
+nA <- 50
+nB <- 60
+
+nombres <- c("Juan","Maria","Pedro","Ana","Luis","Carlos",
+             "Lucia","Jorge","Sofia","Miguel","Laura")
+
+apellidos <- c("Gomez","Perez","Rodriguez","Lopez","Garcia")
+
+sexos <- c("M","F")
+
+A <- data.frame(
+  idA = 1:nA,
+  nombre = sample(nombres,nA,replace=TRUE),
+  apellido = sample(apellidos,nA,replace=TRUE),
+  edad = sample(20:60,nA,replace=TRUE),
+  sexo = sample(sexos,nA,replace=TRUE)
+)
+
+n_match_true <- 30
+
+B_match <- data.frame(
+  idB = 1:n_match_true,
+  nombre = A$nombre[1:n_match_true],
+  apellido = A$apellido[1:n_match_true],
+  edad = A$edad[1:n_match_true] + sample(c(-1,0,1),n_match_true,replace=TRUE),
+  sexo = A$sexo[1:n_match_true]
+)
+
+B_extra <- data.frame(
+  idB = (n_match_true+1):nB,
+  nombre = sample(nombres,nB-n_match_true,replace=TRUE),
+  apellido = sample(apellidos,nB-n_match_true,replace=TRUE),
+  edad = sample(20:60,nB-n_match_true,replace=TRUE),
+  sexo = sample(sexos,nB-n_match_true,replace=TRUE)
+)
+
+B <- rbind(B_match,B_extra)
+```
+
+### ¿Qué hace este bloque?
+
+- Define el tamaño de ambas listas: `A` tiene 50 registros y `B` tiene 60.
+- Crea catálogos simples de nombres, apellidos y sexo para simular variables de identificación.
+- Genera `A` como una base de datos sintética con identificador, nombre, apellido, edad y sexo.
+- Fija `n_match_true <- 30`, lo que significa que los primeros 30 registros de `B` serán coincidencias reales con los primeros 30 registros de `A`.
+- Construye `B_match` copiando esos 30 registros de `A`, aunque introduce una pequeña perturbación en `edad` de `-1`, `0` o `1`, imitando errores o variaciones típicas entre bases.
+- Construye `B_extra` con registros adicionales independientes.
+- Finalmente concatena ambas partes en `B`.
+
+En otras palabras, aquí se prepara un escenario controlado en el que sí conocemos la verdad subyacente. Esto es muy útil para evaluar si el procedimiento logra recuperar las coincidencias reales.
+
+## 3. Generación de todos los pares posibles
+
+Una vez construidas las dos bases, el siguiente paso es formar el producto cartesiano entre `A` y `B`, es decir, todos los pares candidato que podrían compararse.
+
+```{r stan-paso-3-pares, echo=TRUE, eval=FALSE}
+############################################################
+# 3. Crear todos los pares
+############################################################
+
+pairs <- merge(A,B,by=NULL)
+
+N <- nrow(pairs)
+```
+
+### ¿Qué hace este bloque?
+
+- `merge(A, B, by = NULL)` genera todos los pares posibles entre registros de `A` y registros de `B`.
+- Si `A` tiene 50 filas y `B` tiene 60, entonces el número total de pares es `50 x 60 = 3000`.
+- `N <- nrow(pairs)` guarda ese total, porque será una de las entradas del modelo en STAN.
+
+Este paso transforma el problema de enlazar dos archivos en un problema de clasificación de pares: cada par debe ser considerado como posible *match* o *non-match*.
+
+## 4. Construcción de variables de comparación
+
+Después de formar todos los pares, el código compara campo por campo para resumir el nivel de acuerdo entre los registros. Estas comparaciones son justamente las variables que alimentan el modelo de Fellegi-Sunter.
+
+```{r stan-paso-4-comparaciones, echo=TRUE, eval=FALSE}
+############################################################
+# 4. Variables de comparación
+############################################################
+
+pairs$nombre_match <- ifelse(pairs$nombre.x == pairs$nombre.y,1,0)
+pairs$apellido_match <- ifelse(pairs$apellido.x == pairs$apellido.y,1,0)
+pairs$edad_match <- ifelse(abs(pairs$edad.x - pairs$edad.y)<=1,1,0)
+pairs$sexo_match <- ifelse(pairs$sexo.x == pairs$sexo.y,1,0)
+
+X <- as.matrix(pairs[,c(
+  "nombre_match",
+  "apellido_match",
+  "edad_match",
+  "sexo_match"
+)])
+
+K <- ncol(X)
+```
+
+### ¿Qué hace este bloque?
+
+- Crea cuatro indicadores binarios de acuerdo:
+  - `nombre_match`: vale 1 si los nombres coinciden exactamente.
+  - `apellido_match`: vale 1 si los apellidos coinciden exactamente.
+  - `edad_match`: vale 1 si las edades difieren a lo sumo en una unidad.
+  - `sexo_match`: vale 1 si el sexo coincide.
+- Reúne esas variables en una matriz `X`, donde:
+  - cada fila representa un par de registros,
+  - cada columna representa una variable de comparación.
+- Guarda en `K` el número de variables de comparación, que aquí es 4.
+
+Esta matriz `X` es el insumo central del modelo bayesiano: cada fila resume la evidencia observada a favor o en contra de que un par sea una coincidencia real.
+
+## 5. Definición de la verdad simulada
+
+Como este ejemplo es artificial, el script puede construir una variable que identifica cuáles pares son verdaderamente coincidencias.
+
+```{r stan-paso-5-verdad, echo=TRUE, eval=FALSE}
+############################################################
+# 5. Verdad simulada
+############################################################
+
+pairs$true_match <- ifelse(
+  pairs$idA <= n_match_true &
+    pairs$idB == pairs$idA,
+  1,0)
+```
+
+### ¿Qué hace este bloque?
+
+- Marca con 1 los pares en los que:
+  - `idA` está entre los primeros 30 registros con coincidencia real, y
+  - `idB == idA`, que es la forma específica en que se construyó la correspondencia entre `A` y `B_match`.
+- Todos los demás pares quedan marcados como 0.
+
+Esta variable no se usa para ajustar el modelo bayesiano. Su función es servir como referencia para evaluar el desempeño del método una vez que se haya estimado.
+
+## 6. Aplicación de `fastLink`
+
+Antes de ajustar el modelo en STAN, el script ejecuta el paquete `fastLink` como punto de comparación.
+
+```{r stan-paso-6-fastlink, echo=TRUE, eval=FALSE}
+############################################################
+# 6. fastLink
+############################################################
+
+A$edad <- as.numeric(A$edad)
+B$edad <- as.numeric(B$edad)
+
+A$nombre <- as.character(A$nombre)
+B$nombre <- as.character(B$nombre)
+
+A$apellido <- as.character(A$apellido)
+B$apellido <- as.character(B$apellido)
+
+A$sexo <- as.character(A$sexo)
+B$sexo <- as.character(B$sexo)
+
+fl <- fastLink(
+  dfA = A,
+  dfB = B,
+  varnames = c("nombre","apellido","edad","sexo"),
+  stringdist.match = c("nombre","apellido"),
+  numeric.match = c("edad")
+)
+
+matches_fastlink <- data.frame(
+  idA = fl$matches[,1],
+  idB = fl$matches[,2]
+)
+```
+
+### ¿Qué hace este bloque?
+
+- Convierte las columnas a tipos adecuados para evitar problemas en la función `fastLink`.
+- Ejecuta `fastLink()` con las variables que se usarán para enlazar ambos archivos.
+- Indica que `nombre` y `apellido` son campos de texto y que `edad` debe tratarse como variable numérica.
+- Extrae los pares emparejados por el algoritmo y los guarda en `matches_fastlink`.
+
+En el contexto del script, este bloque permite contrastar dos enfoques:
+
+1. un método ya implementado en un paquete especializado;
+2. una implementación explícita del modelo bayesiano en STAN.
+
+## 7. Especificación del modelo bayesiano en STAN
+
+El núcleo conceptual del script aparece cuando se define el modelo probabilístico en lenguaje STAN. Este bloque traduce la idea del modelo de Fellegi-Sunter a una formulación que puede estimarse por MCMC.
+
+```{r stan-paso-7-modelo, echo=TRUE, eval=FALSE}
+############################################################
+# 7. Modelo Fellegi-Sunter bayesiano en Stan
+############################################################
+
+stan_code <- "
+data {
+
+  int<lower=1> N;               // numero de pares
+  int<lower=1> K;               // numero de variables de comparacion
+  int<lower=0,upper=1> X[N,K];  // matriz de acuerdos
+
+}
+
+parameters {
+
+  vector<lower=0,upper=1>[K] m;   // probabilidad de acuerdo dado match
+  vector<lower=0,upper=1>[K] u;   // probabilidad de acuerdo dado no-match
+  real<lower=0,upper=1> pi;       // proporcion de matches
+
+}
+
+model {
+
+  real log_m;
+  real log_u;
+
+  m ~ beta(8,2);
+  u ~ beta(2,8);
+  pi ~ beta(1,5);
+
+  for(i in 1:N){
+
+    log_m = 0;
+    log_u = 0;
+
+    for(k in 1:K){
+
+      log_m += bernoulli_lpmf(X[i,k] | m[k]);
+      log_u += bernoulli_lpmf(X[i,k] | u[k]);
+
+    }
+
+    target += log_sum_exp(
+                 log(pi) + log_m,
+                 log1m(pi) + log_u
+               );
+
+  }
+
+}
+
+"
+```
+
+### ¿Qué hace este bloque?
+
+#### a) Datos de entrada
+
+En el bloque `data` se declaran:
+
+- `N`: número total de pares;
+- `K`: número de variables de comparación;
+- `X[N,K]`: matriz binaria de acuerdos.
+
+#### b) Parámetros del modelo
+
+En `parameters` aparecen los parámetros clásicos del modelo de Fellegi-Sunter:
+
+- `m[k]`: probabilidad de acuerdo en la variable `k` cuando el par sí es un *match*;
+- `u[k]`: probabilidad de acuerdo en la variable `k` cuando el par no es un *match*;
+- `pi`: proporción global de pares que son *matches*.
+
+#### c) Distribuciones previas
+
+El modelo define:
+
+- `m ~ beta(8,2)`, prior que favorece acuerdos altos en verdaderos *matches*;
+- `u ~ beta(2,8)`, prior que favorece acuerdos bajos en *non-matches*;
+- `pi ~ beta(1,5)`, prior que refleja que los *matches* suelen ser poco frecuentes entre todos los pares posibles.
+
+#### d) Verosimilitud marginal
+
+Para cada par `i`, el código calcula:
+
+- `log_m`: log-probabilidad del patrón observado si el par fuera un *match*;
+- `log_u`: log-probabilidad del patrón observado si el par fuera un *non-match*.
+
+Luego suma a `target` la contribución marginal del par usando `log_sum_exp`, que implementa de forma estable la expresión:
+
+$$
+\log\left[\pi \cdot P(X_i \mid Z_i=1) + (1-\pi) \cdot P(X_i \mid Z_i=0)\right].
+$$
+
+Es decir, STAN no observa directamente una etiqueta de *match*, sino que integra sobre esa variable latente.
+
+## 8. Ajuste del modelo
+
+Una vez especificado el modelo, el script prepara los datos en una lista y llama a STAN para estimar la distribución posterior de los parámetros.
+
+```{r stan-paso-8-ajuste, echo=TRUE, eval=FALSE}
+############################################################
+# 8. Ajustar modelo
+############################################################
+
+data_list <- list(
+  N = N,
+  K = K,
+  X = X
+)
+
+fit <- stan(
+  model_code = stan_code,
+  data = data_list,
+  iter = 2000,
+  chains = 4,
+  seed = 123
+)
+```
+
+### ¿Qué hace este bloque?
+
+- `data_list` empaqueta la información que STAN espera recibir.
+- `stan()` compila el modelo y genera simulaciones MCMC.
+- `iter = 2000` indica el número de iteraciones por cadena.
+- `chains = 4` ejecuta cuatro cadenas independientes, útil para evaluar convergencia.
+- `seed = 123` vuelve reproducible el ajuste.
+
+El resultado `fit` contiene muestras posteriores de `m`, `u` y `pi`.
+
+## 9. Cálculo de la probabilidad posterior de *match*
+
+Después del ajuste, el script extrae los parámetros estimados y calcula, para cada par, una probabilidad posterior de coincidencia.
+
+```{r stan-paso-9-posterior, echo=TRUE, eval=FALSE}
+############################################################
+# 9. Probabilidad posterior de match
+############################################################
+
+post <- rstan::extract(fit)
+
+m_hat <- colMeans(post$m)
+u_hat <- colMeans(post$u)
+pi_hat <- mean(post$pi)
+
+p_match <- rep(0,N)
+
+for(i in 1:N){
+  
+  log_m <- log(pi_hat)
+  log_u <- log(1-pi_hat)
+  
+  for(k in 1:K){
+    
+    log_m <- log_m + dbinom(X[i,k],1,m_hat[k],log=TRUE)
+    log_u <- log_u + dbinom(X[i,k],1,u_hat[k],log=TRUE)
+    
+  }
+  
+  p_match[i] <- exp(log_m)/(exp(log_m)+exp(log_u))
+  
+}
+
+pairs$p_match <- p_match
+pairs$bayes_match <- ifelse(pairs$p_match > 0.5,1,0)
+
+matches_bayes <- pairs[pairs$bayes_match==1,c("idA","idB")]
+```
+
+### ¿Qué hace este bloque?
+
+- `rstan::extract(fit)` recupera las simulaciones posteriores.
+- `m_hat`, `u_hat` y `pi_hat` se calculan como resúmenes puntuales de la posterior, usando promedios.
+- Para cada par `i`, el código vuelve a calcular:
+  - la evidencia a favor de que sea *match*;
+  - la evidencia a favor de que sea *non-match*.
+- Luego transforma esas cantidades en una probabilidad posterior:
+
+$$
+P(Z_i=1 \mid X_i) = \frac{P(Z_i=1, X_i)}{P(Z_i=1, X_i) + P(Z_i=0, X_i)}.
+$$
+
+- Esa probabilidad se guarda en `pairs$p_match`.
+- Después se aplica una regla simple de decisión: si `p_match > 0.5`, el par se clasifica como coincidencia bayesiana.
+- Los pares clasificados como coincidencias se almacenan en `matches_bayes`.
+
+Obsérvese que aquí se usa una decisión por umbral fijo de 0.5. En una aplicación real, ese umbral podría modificarse dependiendo del costo de falsos positivos y falsos negativos.
+
+## 10. Comparación entre métodos
+
+El script termina juntando los resultados de `fastLink` y del procedimiento bayesiano para compararlos en una misma tabla.
+
+```{r stan-paso-10-comparacion, echo=TRUE, eval=FALSE}
+############################################################
+# 10. Comparar métodos
+############################################################
+
+matches_fastlink$fastlink <- 1
+matches_bayes$bayes <- 1
+
+comparison <- merge(
+  matches_fastlink,
+  matches_bayes,
+  by=c("idA","idB"),
+  all=TRUE
+)
+
+comparison$fastlink[is.na(comparison$fastlink)] <- 0
+```
+
+### ¿Qué hace este bloque?
+
+- Añade una marca a los pares encontrados por cada método.
+- Une ambas salidas con `merge(..., all = TRUE)` para conservar tanto coincidencias compartidas como exclusivas de cada procedimiento.
+- Reemplaza los valores faltantes de `fastlink` por 0 cuando un par no fue detectado por ese método.
+
+Aunque el script mostrado termina aquí, el siguiente paso natural sería completar también la columna `bayes` con ceros cuando falte y luego calcular medidas de desempeño, por ejemplo:
+
+- número total de coincidencias encontradas por cada método;
+- coincidencias en común;
+- precisión y sensibilidad respecto de `true_match`.
+
+## 11. Lectura global del flujo del script
+
+En conjunto, `RecordLinkage.r` sigue esta secuencia lógica:
+
+1. limpia el entorno y carga librerías;
+2. simula dos archivos con coincidencias verdaderas conocidas;
+3. genera todos los pares posibles;
+4. construye variables binarias de comparación;
+5. guarda la verdad simulada para evaluación;
+6. ejecuta `fastLink` como referencia;
+7. especifica un modelo bayesiano de Fellegi-Sunter en STAN;
+8. ajusta el modelo vía MCMC;
+9. calcula probabilidades posteriores de *match*;
+10. compara los resultados obtenidos por ambos métodos.
+
+De esta manera, el archivo no sólo implementa un ejemplo práctico de *record linkage*, sino que también conecta claramente tres niveles de análisis:
+
+- la simulación de datos;
+- la formulación probabilística del problema;
+- la implementación computacional de la inferencia bayesiana.

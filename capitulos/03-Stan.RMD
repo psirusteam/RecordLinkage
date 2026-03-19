@@ -96,7 +96,7 @@ head(B)
 
 Una vez construidas las dos bases, el siguiente paso es formar el producto cartesiano entre `A` y `B`, es decir, todos los pares candidato que podrían compararse.
 
-```{r stan-paso-3-pares}
+```{r}
 ############################################################
 # 3. Crear todos los pares
 ############################################################

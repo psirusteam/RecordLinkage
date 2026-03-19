@@ -501,25 +501,22 @@ todos los pares candidato que podrían compararse.</p>
 ############################################################
 
 pairs &lt;- merge(A,B,by=NULL)
-
 N &lt;- nrow(pairs)</code></pre>
-<div id="qué-hace-este-bloque" class="section level3">
-<h3>¿Qué hace este bloque?</h3>
-<ul>
-<li><code>merge(A, B, by = NULL)</code> genera todos los pares posibles
-entre registros de <code>A</code> y registros de <code>B</code>.</li>
-<li>Si <code>A</code> tiene 50 filas y <code>B</code> tiene 60, entonces
-el número total de pares es <code>50 x 60 = 3000</code>.</li>
-<li><code>N &lt;- nrow(pairs)</code> guarda ese total, porque será una
-de las entradas del modelo en STAN.</li>
-</ul>
-<p>Este paso transforma el problema de enlazar dos archivos en un
-problema de clasificación de pares: cada par debe ser considerado como
-posible <em>match</em> o <em>non-match</em>.</p>
-</div>
+<p>La instrucción <code>merge(A, B, by = NULL)</code> genera todos los
+pares posibles entre los registros de <code>A</code> y los registros de
+<code>B</code>, es decir, construye el producto cartesiano entre ambos
+conjuntos de datos. Como <code>A</code> tiene 50 filas y <code>B</code>
+tiene 60, entonces el número total de pares generados será 50 x 60 =
+3000. A partir de este resultado, la expresión
+<code>N &lt;- nrow(pairs)</code> permite almacenar ese total de pares,
+el cual será una de las entradas clave del modelo en STAN.</p>
+<p>Este paso es fundamental porque transforma el problema original de
+enlazar dos archivos en un problema de clasificación de pares: cada
+combinación posible de registros debe ser evaluada y clasificada como un
+posible match o non-match.</p>
 </div>
 <div id="construcción-de-variables-de-comparación" class="section level2">
-<h2>4. Construcción de variables de comparación</h2>
+<h2>Construcción de variables de comparación</h2>
 <p>Después de formar todos los pares, el código compara campo por campo
 para resumir el nivel de acuerdo entre los registros. Estas
 comparaciones son justamente las variables que alimentan el modelo de
@@ -541,7 +538,7 @@ X &lt;- as.matrix(pairs[,c(
 )])
 
 K &lt;- ncol(X)</code></pre>
-<div id="qué-hace-este-bloque-1" class="section level3">
+<div id="qué-hace-este-bloque" class="section level3">
 <h3>¿Qué hace este bloque?</h3>
 <ul>
 <li>Crea cuatro indicadores binarios de acuerdo:
@@ -580,7 +577,7 @@ pairs$true_match &lt;- ifelse(
   pairs$idA &lt;= n_match_true &amp;
     pairs$idB == pairs$idA,
   1,0)</code></pre>
-<div id="qué-hace-este-bloque-2" class="section level3">
+<div id="qué-hace-este-bloque-1" class="section level3">
 <h3>¿Qué hace este bloque?</h3>
 <ul>
 <li>Marca con 1 los pares en los que:
@@ -630,7 +627,7 @@ matches_fastlink &lt;- data.frame(
   idA = fl$matches[,1],
   idB = fl$matches[,2]
 )</code></pre>
-<div id="qué-hace-este-bloque-3" class="section level3">
+<div id="qué-hace-este-bloque-2" class="section level3">
 <h3>¿Qué hace este bloque?</h3>
 <ul>
 <li>Convierte las columnas a tipos adecuados para evitar problemas en la
@@ -707,7 +704,7 @@ model {
 }
 
 &quot;</code></pre>
-<div id="qué-hace-este-bloque-4" class="section level3">
+<div id="qué-hace-este-bloque-3" class="section level3">
 <h3>¿Qué hace este bloque?</h3>
 <div id="a-datos-de-entrada" class="section level4">
 <h4>a) Datos de entrada</h4>
@@ -787,7 +784,7 @@ fit &lt;- stan(
   chains = 4,
   seed = 123
 )</code></pre>
-<div id="qué-hace-este-bloque-5" class="section level3">
+<div id="qué-hace-este-bloque-4" class="section level3">
 <h3>¿Qué hace este bloque?</h3>
 <ul>
 <li><code>data_list</code> empaqueta la información que STAN espera
@@ -840,7 +837,7 @@ pairs$p_match &lt;- p_match
 pairs$bayes_match &lt;- ifelse(pairs$p_match &gt; 0.5,1,0)
 
 matches_bayes &lt;- pairs[pairs$bayes_match==1,c(&quot;idA&quot;,&quot;idB&quot;)]</code></pre>
-<div id="qué-hace-este-bloque-6" class="section level3">
+<div id="qué-hace-este-bloque-5" class="section level3">
 <h3>¿Qué hace este bloque?</h3>
 <ul>
 <li><code>rstan::extract(fit)</code> recupera las simulaciones
@@ -890,7 +887,7 @@ comparison &lt;- merge(
 )
 
 comparison$fastlink[is.na(comparison$fastlink)] &lt;- 0</code></pre>
-<div id="qué-hace-este-bloque-7" class="section level3">
+<div id="qué-hace-este-bloque-6" class="section level3">
 <h3>¿Qué hace este bloque?</h3>
 <ul>
 <li>Añade una marca a los pares encontrados por cada método.</li>

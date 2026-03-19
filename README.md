@@ -12,19 +12,6 @@ El hilo conductor de esta exploración es la inferencia bayesiana, que permite u
 
 En síntesis, este repositorio debe entenderse como una especie de cuaderno de trabajo extendido: un espacio donde la teoría, la modelación y la implementación dialogan constantemente, con el objetivo principal de profundizar en la comprensión del *record linkage* desde una perspectiva rigurosa pero también exploratoria.
 
-La página web de este repositorio es:
+El sitio web de este repositorio es:
 
 <https://psirusteam.github.io/RecordLinkage/>
-
-## Generación del sitio y del PDF
-
-El archivo principal `RLteoría.Rmd` ahora está preparado para generar dos salidas:
-
-- `index.html`, que puede publicarse en GitHub Pages.
-- `RLteoria.pdf`, un documento PDF descargable directamente desde la propia página web.
-
-Para compilar ambos artefactos, ejecute:
-
-```bash
-Rscript build_site.R
-```

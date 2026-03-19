@@ -1,6 +1,6 @@
 # Implementación paso a paso en `RecordLinkage.r`
 
-```{r setup, include=FALSE}
+```{r, include=FALSE}
 knitr::opts_chunk$set(cache = TRUE)
 ```
 

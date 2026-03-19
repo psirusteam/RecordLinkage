@@ -471,9 +471,10 @@ B_extra &lt;- data.frame(
   sexo = sample(sexos,nB-n_match_true,replace=TRUE)
 )
 
-B &lt;- rbind(B_match,B_extra)
-
-head(A)</code></pre>
+B &lt;- rbind(B_match,B_extra)</code></pre>
+<p>A continuación se muestran los primeros seis registros de ambos
+listados.</p>
+<pre class="r"><code>head(A)</code></pre>
 <pre><code>##   idA nombre apellido edad sexo
 ## 1   1  Pedro    Gomez   38    M
 ## 2   2  Pedro   Garcia   44    F

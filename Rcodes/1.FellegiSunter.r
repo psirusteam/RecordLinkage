@@ -140,14 +140,11 @@ parameters {
 }
 
 model {
-
+  // Verosimilitud
+  
   real log_m;
   real log_u;
-
-  m ~ beta(8,2);
-  u ~ beta(2,8);
-  pi ~ beta(1,5);
-
+  
   for(i in 1:N){
 
     log_m = 0;
@@ -167,10 +164,38 @@ model {
 
   }
 
+  // Distribuciones previas
+  
+  m ~ beta(8,2);
+  u ~ beta(2,8);
+  pi ~ beta(1,5);
+
+}
+
+generated quantities {
+
+  vector[N] p_match;
+
+  for(i in 1:N){
+
+    real log_m;
+    real log_u;
+
+    log_m = log(pi);
+    log_u = log1m(pi);
+
+    for(k in 1:K){
+      log_m += bernoulli_lpmf(X[i,k] | m[k]);
+      log_u += bernoulli_lpmf(X[i,k] | u[k]);
+    }
+
+    p_match[i] = exp(log_m) / (exp(log_m) + exp(log_u));
+
+  }
+
 }
 
 "
-
 
 ############################################################
 # 8. Ajustar modelo
@@ -199,24 +224,7 @@ post <- rstan::extract(fit)
 m_hat <- colMeans(post$m)
 u_hat <- colMeans(post$u)
 pi_hat <- mean(post$pi)
-
-p_match <- rep(0,N)
-
-for(i in 1:N){
-  
-  log_m <- log(pi_hat)
-  log_u <- log(1-pi_hat)
-  
-  for(k in 1:K){
-    
-    log_m <- log_m + dbinom(X[i,k],1,m_hat[k],log=TRUE)
-    log_u <- log_u + dbinom(X[i,k],1,u_hat[k],log=TRUE)
-    
-  }
-  
-  p_match[i] <- exp(log_m)/(exp(log_m)+exp(log_u))
-  
-}
+p_match <- colMeans(post$p_match)
 
 pairs$p_match <- p_match
 pairs$bayes_match <- ifelse(pairs$p_match > 0.5,1,0)

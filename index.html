@@ -1501,11 +1501,12 @@ Linkage</h1>
 <h4 class="author">Andrés Gutiérrez - División de Estadísticas de la
 CEPAL</h4>
 
-<p><a href="RLteoria.pdf" download>Descargar el PDF generado</a></p>
-
 </div>
 
 
+<p>
+<a href="RLteoria.pdf" download>Descargar el PDF generado</a>
+</p>
 <p>En este repositorio me propongo desarrollar, de manera detallada y
 progresiva, tanto la teoría como algunos elementos prácticos del
 <em>record linkage</em>, tomando como eje tres hitos fundamentales en la
@@ -2549,25 +2550,41 @@ registros, calcular probabilidades posteriores de coincidencia, y tomar
 decisiones basadas en un marco probabilístico sólido y coherente.</p>
 </div>
 </div>
-<div id="implementación-paso-a-paso-en-recordlinkage.r" class="section level1">
-<h1>Implementación paso a paso en <code>RecordLinkage.r</code></h1>
-<p>En este capítulo descompongo el archivo <code>FellegiSunter.r</code>
+<div id="implementación-bayesiana-paso-a-paso" class="section level1">
+<h1>Implementación bayesiana paso a paso</h1>
+<p>En este capítulo se describe el archivo <code>FellegiSunter.r</code>
 en bloques lógicos para mostrar qué hace cada parte del código y por qué
 es necesaria dentro de un flujo simple de <em>record linkage</em>
 bayesiano.</p>
+<p>En conjunto, <code>RecordLinkage.r</code> sigue una secuencia lógica
+que va desde la preparación de los datos hasta la comparación de métodos
+de inferencia. El script comienza limpiando el entorno de trabajo y
+cargando las librerías necesarias, luego simula dos archivos con
+coincidencias verdaderas conocidas y genera todos los pares posibles
+entre ellos. A partir de estos pares, construye variables binarias de
+comparación y conserva la “verdad” simulada, lo que permite evaluar
+posteriormente el desempeño de los métodos.</p>
+<p>En una siguiente etapa, se ejecuta <code>fastLink</code> como punto
+de referencia y, en paralelo, se especifica un modelo bayesiano de
+Fellegi-Sunter en STAN, el cual se ajusta mediante MCMC. Con los
+resultados del modelo, se calculan las probabilidades posteriores de
+<em>match</em> para cada par y finalmente se comparan los resultados
+obtenidos por ambos enfoques.</p>
+<p>De esta forma, el archivo no solo implementa un ejemplo práctico de
+<em>record linkage</em>, sino que también articula claramente tres
+niveles de análisis: la simulación de datos, la formulación
+probabilística del problema y la implementación computacional de la
+inferencia bayesiana.</p>
 <div id="carga-de-librerías-y-configuración-inicial" class="section level2">
 <h2>Carga de librerías y configuración inicial</h2>
 <p>El script comienza limpiando el entorno de trabajo, cargando las
 librerías necesarias y definiendo algunas opciones para que STAN pueda
 compilar y ejecutar el modelo de manera más eficiente.</p>
-<pre class="r"><code>############################################################
-# 1. Librerías
-############################################################
-
-rm(list = ls())
+<pre class="r"><code>rm(list = ls())
 
 library(rstan)
 library(fastLink)
+library(tidyverse)
 
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
@@ -2628,11 +2645,7 @@ finalmente se concatenan ambas partes para formar la base final
 se conoce la verdad subyacente, lo que resulta especialmente útil para
 evaluar si el método de record linkage es capaz de recuperar
 correctamente las coincidencias reales.</p>
-<pre class="r"><code>############################################################
-# 2. Crear listas A y B
-############################################################
-
-nA &lt;- 50
+<pre class="r"><code>nA &lt;- 50
 nB &lt;- 60
 
 nombres &lt;- c(&quot;Juan&quot;,&quot;Maria&quot;,&quot;Pedro&quot;,&quot;Ana&quot;,&quot;Luis&quot;,&quot;Carlos&quot;,
@@ -2671,6 +2684,7 @@ B_extra &lt;- data.frame(
 B &lt;- rbind(B_match,B_extra)</code></pre>
 <p>A continuación se muestran los primeros seis registros de ambos
 listados.</p>
+<pre class="r"><code>head(A)</code></pre>
 <pre><code>##   idA nombre apellido edad sexo
 ## 1   1  Pedro    Gomez   38    M
 ## 2   2  Pedro   Garcia   44    F
@@ -2678,6 +2692,7 @@ listados.</p>
 ## 4   4  Maria    Perez   45    F
 ## 5   5 Carlos    Lopez   28    M
 ## 6   6  Laura    Lopez   26    M</code></pre>
+<pre class="r"><code>head(B)</code></pre>
 <pre><code>##   idB nombre apellido edad sexo
 ## 1   1  Pedro    Gomez   37    M
 ## 2   2  Pedro   Garcia   44    F
@@ -2687,10 +2702,12 @@ listados.</p>
 ## 6   6  Laura    Lopez   25    M</code></pre>
 </div>
 <div id="generación-de-todos-los-pares-posibles" class="section level2">
-<h2>3. Generación de todos los pares posibles</h2>
+<h2>Generación de todos los pares posibles</h2>
 <p>Una vez construidas las dos bases, el siguiente paso es formar el
 producto cartesiano entre <code>A</code> y <code>B</code>, es decir,
 todos los pares candidato que podrían compararse.</p>
+<pre class="r"><code>pairs &lt;- merge(A,B,by=NULL)
+N &lt;- nrow(pairs)</code></pre>
 <p>La instrucción <code>merge(A, B, by = NULL)</code> genera todos los
 pares posibles entre los registros de <code>A</code> y los registros de
 <code>B</code>, es decir, construye el producto cartesiano entre ambos
@@ -2702,150 +2719,110 @@ el cual será una de las entradas clave del modelo en STAN.</p>
 <p>Este paso es fundamental porque transforma el problema original de
 enlazar dos archivos en un problema de clasificación de pares: cada
 combinación posible de registros debe ser evaluada y clasificada como un
-posible match o non-match.</p>
+posible match o non-match. A continuación se observan lo primeros
+registros de la tabla de datos que contiene los pares de
+comparación.</p>
+<pre class="r"><code>head(pairs)</code></pre>
+<pre><code>##   idA nombre.x apellido.x edad.x sexo.x idB nombre.y apellido.y edad.y
+## 1   1    Pedro      Gomez     38      M   1    Pedro      Gomez     37
+## 2   2    Pedro     Garcia     44      F   1    Pedro      Gomez     37
+## 3   3   Miguel      Gomez     58      M   1    Pedro      Gomez     37
+## 4   4    Maria      Perez     45      F   1    Pedro      Gomez     37
+## 5   5   Carlos      Lopez     28      M   1    Pedro      Gomez     37
+## 6   6    Laura      Lopez     26      M   1    Pedro      Gomez     37
+##   sexo.y
+## 1      M
+## 2      M
+## 3      M
+## 4      M
+## 5      M
+## 6      M</code></pre>
 </div>
-<div id="construcción-de-variables-de-comparación" class="section level2">
-<h2>Construcción de variables de comparación</h2>
+<div id="construcción-de-las-variables-de-comparación" class="section level2">
+<h2>Construcción de las variables de comparación</h2>
 <p>Después de formar todos los pares, el código compara campo por campo
 para resumir el nivel de acuerdo entre los registros. Estas
 comparaciones son justamente las variables que alimentan el modelo de
 Fellegi-Sunter.</p>
-<pre class="r"><code>############################################################
-# 4. Variables de comparación
-############################################################
-
-pairs$nombre_match &lt;- ifelse(pairs$nombre.x == pairs$nombre.y,1,0)
-pairs$apellido_match &lt;- ifelse(pairs$apellido.x == pairs$apellido.y,1,0)
-pairs$edad_match &lt;- ifelse(abs(pairs$edad.x - pairs$edad.y)&lt;=1,1,0)
-pairs$sexo_match &lt;- ifelse(pairs$sexo.x == pairs$sexo.y,1,0)
-
-X &lt;- as.matrix(pairs[,c(
-  &quot;nombre_match&quot;,
-  &quot;apellido_match&quot;,
-  &quot;edad_match&quot;,
-  &quot;sexo_match&quot;
-)])
-
-K &lt;- ncol(X)</code></pre>
-<div id="qué-hace-este-bloque" class="section level3">
-<h3>¿Qué hace este bloque?</h3>
-<ul>
-<li>Crea cuatro indicadores binarios de acuerdo:
-<ul>
-<li><code>nombre_match</code>: vale 1 si los nombres coinciden
-exactamente.</li>
-<li><code>apellido_match</code>: vale 1 si los apellidos coinciden
-exactamente.</li>
-<li><code>edad_match</code>: vale 1 si las edades difieren a lo sumo en
-una unidad.</li>
-<li><code>sexo_match</code>: vale 1 si el sexo coincide.</li>
-</ul></li>
-<li>Reúne esas variables en una matriz <code>X</code>, donde:
-<ul>
-<li>cada fila representa un par de registros,</li>
-<li>cada columna representa una variable de comparación.</li>
-</ul></li>
-<li>Guarda en <code>K</code> el número de variables de comparación, que
-aquí es 4.</li>
-</ul>
-<p>Esta matriz <code>X</code> es el insumo central del modelo bayesiano:
-cada fila resume la evidencia observada a favor o en contra de que un
-par sea una coincidencia real.</p>
+<p>En esta etapa se construyen cuatro indicadores binarios que resumen
+la comparación entre registros: <code>nombre_match</code>, que toma el
+valor 1 si los nombres coinciden exactamente;
+<code>apellido_match</code>, que vale 1 cuando los apellidos coinciden;
+<code>edad_match</code>, que es 1 si las edades difieren a lo sumo en
+una unidad; y <code>sexo_match</code>, que toma el valor 1 cuando el
+sexo coincide. Estos indicadores permiten traducir las comparaciones
+entre variables en una forma numérica sencilla y homogénea.</p>
+<p>Posteriormente, estas variables se organizan en una matriz
+<code>X</code>, donde cada fila corresponde a un par de registros y cada
+columna representa una de las variables de comparación. Además, se
+define <code>K</code> como el número total de variables de comparación,
+que en este caso es 4. Esta matriz <code>X</code> constituye el insumo
+central del modelo bayesiano, ya que cada fila resume la evidencia
+observada a favor o en contra de que un par de registros corresponda a
+una misma unidad (match) o no (non-match).</p>
+<p>A continuación se observan lo primeros registros de la matriz de
+comparación.</p>
+<pre class="r"><code>head(X)</code></pre>
+<pre><code>##      nombre_match apellido_match edad_match sexo_match
+## [1,]            1              1          1          1
+## [2,]            1              0          0          0
+## [3,]            0              1          0          1
+## [4,]            0              0          0          0
+## [5,]            0              0          0          1
+## [6,]            0              0          0          1</code></pre>
 </div>
-</div>
-<div id="definición-de-la-verdad-simulada" class="section level2">
-<h2>5. Definición de la verdad simulada</h2>
-<p>Como este ejemplo es artificial, el script puede construir una
-variable que identifica cuáles pares son verdaderamente
-coincidencias.</p>
-<pre class="r"><code>############################################################
-# 5. Verdad simulada
-############################################################
-
-pairs$true_match &lt;- ifelse(
+<div id="definición-de-las-entidades-emparejadas" class="section level2">
+<h2>Definición de las entidades emparejadas</h2>
+<p>En este paso se construye una variable que identifica cuáles pares
+son verdaderamente coincidencias. Esta variable no se usa para ajustar
+el modelo bayesiano. Su función es servir como referencia para evaluar
+el desempeño del método una vez que se haya estimado.</p>
+<pre class="r"><code>pairs$true_match &lt;- ifelse(
   pairs$idA &lt;= n_match_true &amp;
     pairs$idB == pairs$idA,
   1,0)</code></pre>
-<div id="qué-hace-este-bloque-1" class="section level3">
-<h3>¿Qué hace este bloque?</h3>
-<ul>
-<li>Marca con 1 los pares en los que:
-<ul>
-<li><code>idA</code> está entre los primeros 30 registros con
-coincidencia real, y</li>
-<li><code>idB == idA</code>, que es la forma específica en que se
-construyó la correspondencia entre <code>A</code> y
-<code>B_match</code>.</li>
-</ul></li>
-<li>Todos los demás pares quedan marcados como 0.</li>
-</ul>
-<p>Esta variable no se usa para ajustar el modelo bayesiano. Su función
-es servir como referencia para evaluar el desempeño del método una vez
-que se haya estimado.</p>
-</div>
+<p>Se asigna el valor 1 a aquellos pares que cumplen simultáneamente dos
+condiciones: por un lado, que <code>idA</code> se encuentre entre los
+primeros 30 registros que corresponden a coincidencias reales, y por
+otro, que <code>idB == idA</code>, lo cual refleja la forma específica
+en que se construyó la correspondencia entre <code>A</code> y
+<code>B_match</code>.</p>
+<p>Todos los demás pares que no satisfacen estas condiciones se marcan
+con 0, de modo que esta variable indica de manera clara cuáles pares
+corresponden a coincidencias verdaderas y cuáles no.</p>
 </div>
 <div id="aplicación-de-fastlink" class="section level2">
-<h2>6. Aplicación de <code>fastLink</code></h2>
+<h2>Aplicación de <code>fastLink</code></h2>
 <p>Antes de ajustar el modelo en STAN, el script ejecuta el paquete
 <code>fastLink</code> como punto de comparación.</p>
-<pre class="r"><code>############################################################
-# 6. fastLink
-############################################################
-
-A$edad &lt;- as.numeric(A$edad)
-B$edad &lt;- as.numeric(B$edad)
-
-A$nombre &lt;- as.character(A$nombre)
-B$nombre &lt;- as.character(B$nombre)
-
-A$apellido &lt;- as.character(A$apellido)
-B$apellido &lt;- as.character(B$apellido)
-
-A$sexo &lt;- as.character(A$sexo)
-B$sexo &lt;- as.character(B$sexo)
-
-fl &lt;- fastLink(
-  dfA = A,
-  dfB = B,
-  varnames = c(&quot;nombre&quot;,&quot;apellido&quot;,&quot;edad&quot;,&quot;sexo&quot;),
-  stringdist.match = c(&quot;nombre&quot;,&quot;apellido&quot;),
-  numeric.match = c(&quot;edad&quot;)
-)
-
-matches_fastlink &lt;- data.frame(
-  idA = fl$matches[,1],
-  idB = fl$matches[,2]
-)</code></pre>
-<div id="qué-hace-este-bloque-2" class="section level3">
-<h3>¿Qué hace este bloque?</h3>
-<ul>
-<li>Convierte las columnas a tipos adecuados para evitar problemas en la
-función <code>fastLink</code>.</li>
-<li>Ejecuta <code>fastLink()</code> con las variables que se usarán para
-enlazar ambos archivos.</li>
-<li>Indica que <code>nombre</code> y <code>apellido</code> son campos de
-texto y que <code>edad</code> debe tratarse como variable numérica.</li>
-<li>Extrae los pares emparejados por el algoritmo y los guarda en
-<code>matches_fastlink</code>.</li>
-</ul>
-<p>En el contexto del script, este bloque permite contrastar dos
-enfoques:</p>
-<ol style="list-style-type: decimal">
-<li>un método ya implementado en un paquete especializado;</li>
-<li>una implementación explícita del modelo bayesiano en STAN.</li>
-</ol>
+<p>En primer lugar, es necesario asegurar que cada variable sea
+interpretada correctamente por el algoritmo. Luego se ejecuta
+<code>fastLink()</code> especificando las variables que se emplearán
+para enlazar ambos archivos, indicando explícitamente que
+<code>nombre</code> y <code>apellido</code> deben tratarse como campos
+de texto, mientras que <code>edad</code> se maneja como una variable
+numérica. A partir de esta ejecución, se extraen los pares identificados
+como coincidencias por el algoritmo y se almacenan en el objeto
+<code>matches_fastlink</code>.</p>
+<pre class="r"><code>head(matches_fastlink)</code></pre>
+<pre><code>##   idA idB
+## 1   1   1
+## 2   2   2
+## 3   3   3
+## 4   4   4
+## 5   5   5
+## 6   6   6</code></pre>
+<p>En el contexto del script, este bloque es clave porque permite
+contrastar dos enfoques distintos: por un lado, el uso de un método ya
+implementado en un paquete especializado, y por otro, una implementación
+explícita del modelo bayesiano en STAN.</p>
 </div>
-</div>
-<div id="especificación-del-modelo-bayesiano-en-stan" class="section level2">
-<h2>7. Especificación del modelo bayesiano en STAN</h2>
+<div id="modelo-fellegi-sunter-bayesiano-en-stan" class="section level2">
+<h2>Modelo Fellegi-Sunter bayesiano en Stan</h2>
 <p>El núcleo conceptual del script aparece cuando se define el modelo
 probabilístico en lenguaje STAN. Este bloque traduce la idea del modelo
 de Fellegi-Sunter a una formulación que puede estimarse por MCMC.</p>
-<pre class="r"><code>############################################################
-# 7. Modelo Fellegi-Sunter bayesiano en Stan
-############################################################
-
-stan_code &lt;- &quot;
+<pre class="r"><code>stan_code &lt;- &quot;
 data {
 
   int&lt;lower=1&gt; N;               // numero de pares
@@ -2863,14 +2840,11 @@ parameters {
 }
 
 model {
-
+  // Verosimilitud
+  
   real log_m;
   real log_u;
-
-  m ~ beta(8,2);
-  u ~ beta(2,8);
-  pi ~ beta(1,5);
-
+  
   for(i in 1:N){
 
     log_m = 0;
@@ -2890,182 +2864,160 @@ model {
 
   }
 
+  // Distribuciones previas
+  
+  m ~ beta(8,2);
+  u ~ beta(2,8);
+  pi ~ beta(1,5);
+
+}
+
+generated quantities {
+
+  vector[N] p_match;
+
+  for(i in 1:N){
+
+    real log_m;
+    real log_u;
+
+    log_m = log(pi);
+    log_u = log1m(pi);
+
+    for(k in 1:K){
+      log_m += bernoulli_lpmf(X[i,k] | m[k]);
+      log_u += bernoulli_lpmf(X[i,k] | u[k]);
+    }
+
+    p_match[i] = exp(log_m) / (exp(log_m) + exp(log_u));
+
+  }
+
 }
 
 &quot;</code></pre>
-<div id="qué-hace-este-bloque-3" class="section level3">
-<h3>¿Qué hace este bloque?</h3>
-<div id="a-datos-de-entrada" class="section level4">
-<h4>a) Datos de entrada</h4>
-<p>En el bloque <code>data</code> se declaran:</p>
-<ul>
-<li><code>N</code>: número total de pares;</li>
-<li><code>K</code>: número de variables de comparación;</li>
-<li><code>X[N,K]</code>: matriz binaria de acuerdos.</li>
-</ul>
-</div>
-<div id="b-parámetros-del-modelo" class="section level4">
-<h4>b) Parámetros del modelo</h4>
-<p>En <code>parameters</code> aparecen los parámetros clásicos del
-modelo de Fellegi-Sunter:</p>
-<ul>
-<li><code>m[k]</code>: probabilidad de acuerdo en la variable
-<code>k</code> cuando el par sí es un <em>match</em>;</li>
-<li><code>u[k]</code>: probabilidad de acuerdo en la variable
-<code>k</code> cuando el par no es un <em>match</em>;</li>
-<li><code>pi</code>: proporción global de pares que son
-<em>matches</em>.</li>
-</ul>
-</div>
-<div id="c-distribuciones-previas" class="section level4">
-<h4>c) Distribuciones previas</h4>
-<p>El modelo define:</p>
-<ul>
-<li><code>m ~ beta(8,2)</code>, prior que favorece acuerdos altos en
-verdaderos <em>matches</em>;</li>
-<li><code>u ~ beta(2,8)</code>, prior que favorece acuerdos bajos en
-<em>non-matches</em>;</li>
-<li><code>pi ~ beta(1,5)</code>, prior que refleja que los
-<em>matches</em> suelen ser poco frecuentes entre todos los pares
-posibles.</li>
-</ul>
-</div>
-<div id="d-verosimilitud-marginal" class="section level4">
-<h4>d) Verosimilitud marginal</h4>
-<p>Para cada par <code>i</code>, el código calcula:</p>
-<ul>
-<li><code>log_m</code>: log-probabilidad del patrón observado si el par
-fuera un <em>match</em>;</li>
-<li><code>log_u</code>: log-probabilidad del patrón observado si el par
-fuera un <em>non-match</em>.</li>
-</ul>
-<p>Luego suma a <code>target</code> la contribución marginal del par
-usando <code>log_sum_exp</code>, que implementa de forma estable la
-expresión:</p>
-<p><span class="math display">\[
-\log\left[\pi \cdot P(X_i \mid Z_i=1) + (1-\pi) \cdot P(X_i \mid
-Z_i=0)\right].
-\]</span></p>
-<p>Es decir, STAN no observa directamente una etiqueta de
-<em>match</em>, sino que integra sobre esa variable latente.</p>
-</div>
-</div>
+<p>En el bloque <code>data</code> se declaran los insumos del modelo:
+<code>N</code>, que corresponde al número total de pares generados;
+<code>K</code>, que indica el número de variables de comparación; y
+<code>X[N,K]</code>, que es la matriz binaria que resume los acuerdos
+entre registros para cada par. Esta matriz constituye la evidencia
+observada que alimenta el modelo.</p>
+<p>En la sección <code>parameters</code> aparecen los parámetros
+clásicos del modelo de Fellegi-Sunter. Por un lado, <code>m[k]</code>
+representa la probabilidad de acuerdo en la variable <code>k</code>
+cuando el par es un <em>match</em>, mientras que <code>u[k]</code>
+corresponde a la probabilidad de acuerdo cuando el par es un
+<em>non-match</em>. Adicionalmente, <code>pi</code> modela la proporción
+global de pares que efectivamente son coincidencias verdaderas dentro
+del conjunto total.</p>
+<p>Asimismo, en la verosimilitud marginal, para cada par <code>i</code>
+el código calcula <code>log_m</code>, que es la log-probabilidad del
+patrón observado bajo la hipótesis de que el par es un <em>match</em>, y
+<code>log_u</code>, que corresponde a la hipótesis de
+<em>non-match</em>. Luego, mediante <code>log_sum_exp</code>, se suma a
+<code>target</code> la contribución marginal del par, lo que implementa
+de forma numéricamente estable la combinación ponderada por
+<code>pi</code> de ambas posibilidades. En otras palabras, STAN no
+observa directamente si un par es o no un <em>match</em>, sino que
+integra esa incertidumbre al evaluar la probabilidad de los datos
+observados.</p>
+<p>El modelo se completa con la especificación de distribuciones
+previas: se asume <code>m ~ beta(8,2)</code>, lo que favorece
+probabilidades altas de acuerdo en verdaderos <em>matches</em>;
+<code>u ~ beta(2,8)</code>, que favorece acuerdos bajos en
+<em>non-matches</em>; y <code>pi ~ beta(1,5)</code>, reflejando que las
+coincidencias reales suelen ser poco frecuentes entre todos los pares
+posibles. Estas elecciones incorporan conocimiento previo razonable
+sobre el problema.</p>
+<p>Finalmente, para cada par de registros se calcula la probabilidad
+posterior de que sea un <em>match</em>, utilizando los valores de los
+parámetros simulados en cada iteración del algoritmo MCMC. En otras
+palabras, toma los parámetros <code>m</code>, <code>u</code> y
+<code>pi</code> generados por STAN y, con ellos, evalúa qué tan probable
+es que cada par corresponda a una coincidencia real. Para cada par
+<code>i</code>, el código construye dos cantidades: <code>log_m</code>,
+que representa la log-probabilidad de observar el patrón de acuerdos
+<code>X[i, ]</code> si el par fuera un <em>match</em>, y
+<code>log_u</code>, que corresponde a la misma probabilidad bajo la
+hipótesis de <em>non-match</em>. Ambas comienzan incorporando la
+información previa a través de <code>pi</code> (la proporción de
+<em>matches</em>) y luego se van acumulando sumando las contribuciones
+de cada variable de comparación mediante la función de verosimilitud
+Bernoulli.</p>
+<p>Adicionalmente, el código transforma estas cantidades desde la escala
+logarítmica a probabilidades y calcula, para cada par, la probabilidad
+posterior de ser un <em>match</em> como una razón entre ambas hipótesis.
+El resultado se almacena en el vector <code>p_match</code>, de modo que
+en cada iteración de STAN se obtiene una estimación probabilística
+completa para todos los pares, incorporando la incertidumbre de los
+parámetros del modelo.</p>
 </div>
 <div id="ajuste-del-modelo" class="section level2">
-<h2>8. Ajuste del modelo</h2>
+<h2>Ajuste del modelo</h2>
 <p>Una vez especificado el modelo, el script prepara los datos en una
 lista y llama a STAN para estimar la distribución posterior de los
 parámetros.</p>
-<pre class="r"><code>############################################################
-# 8. Ajustar modelo
-############################################################
-
-data_list &lt;- list(
-  N = N,
-  K = K,
-  X = X
-)
-
-fit &lt;- stan(
-  model_code = stan_code,
-  data = data_list,
-  iter = 2000,
-  chains = 4,
-  seed = 123
-)</code></pre>
-<div id="qué-hace-este-bloque-4" class="section level3">
-<h3>¿Qué hace este bloque?</h3>
-<ul>
-<li><code>data_list</code> empaqueta la información que STAN espera
-recibir.</li>
-<li><code>stan()</code> compila el modelo y genera simulaciones
-MCMC.</li>
-<li><code>iter = 2000</code> indica el número de iteraciones por
-cadena.</li>
-<li><code>chains = 4</code> ejecuta cuatro cadenas independientes, útil
-para evaluar convergencia.</li>
-<li><code>seed = 123</code> vuelve reproducible el ajuste.</li>
-</ul>
-<p>El resultado <code>fit</code> contiene muestras posteriores de
-<code>m</code>, <code>u</code> y <code>pi</code>.</p>
-</div>
+<p>El objeto <code>data_list</code> se encarga de empaquetar toda la
+información en el formato que STAN espera recibir como entrada,
+asegurando que los datos del modelo estén correctamente estructurados.
+Luego, la función <code>stan()</code> compila el modelo y ejecuta el
+proceso de simulación mediante MCMC, lo que permite aproximar la
+distribución posterior de los parámetros de interés.</p>
+<p>En este contexto, <code>iter = 2000</code> define el número de
+iteraciones que se ejecutan en cada cadena, mientras que
+<code>chains = 4</code> indica que se corren cuatro cadenas
+independientes, lo cual es clave para evaluar la convergencia del
+algoritmo. Además, el argumento <code>seed = 123</code> garantiza la
+reproducibilidad de los resultados. Como salida, el objeto
+<code>fit</code> contiene las muestras posteriores de los parámetros
+<code>m</code>, <code>u</code> y <code>pi</code>, que son fundamentales
+para el análisis del modelo.</p>
 </div>
 <div id="cálculo-de-la-probabilidad-posterior-de-match" class="section level2">
-<h2>9. Cálculo de la probabilidad posterior de <em>match</em></h2>
+<h2>Cálculo de la probabilidad posterior de <em>match</em></h2>
 <p>Después del ajuste, el script extrae los parámetros estimados y
 calcula, para cada par, una probabilidad posterior de coincidencia.</p>
-<pre class="r"><code>############################################################
-# 9. Probabilidad posterior de match
-############################################################
-
-post &lt;- rstan::extract(fit)
+<pre class="r"><code>post &lt;- rstan::extract(fit)
 
 m_hat &lt;- colMeans(post$m)
 u_hat &lt;- colMeans(post$u)
 pi_hat &lt;- mean(post$pi)
-
-p_match &lt;- rep(0,N)
-
-for(i in 1:N){
-  
-  log_m &lt;- log(pi_hat)
-  log_u &lt;- log(1-pi_hat)
-  
-  for(k in 1:K){
-    
-    log_m &lt;- log_m + dbinom(X[i,k],1,m_hat[k],log=TRUE)
-    log_u &lt;- log_u + dbinom(X[i,k],1,u_hat[k],log=TRUE)
-    
-  }
-  
-  p_match[i] &lt;- exp(log_m)/(exp(log_m)+exp(log_u))
-  
-}
+p_match &lt;- colMeans(post$p_match)
 
 pairs$p_match &lt;- p_match
 pairs$bayes_match &lt;- ifelse(pairs$p_match &gt; 0.5,1,0)
 
 matches_bayes &lt;- pairs[pairs$bayes_match==1,c(&quot;idA&quot;,&quot;idB&quot;)]</code></pre>
-<div id="qué-hace-este-bloque-5" class="section level3">
-<h3>¿Qué hace este bloque?</h3>
-<ul>
-<li><code>rstan::extract(fit)</code> recupera las simulaciones
-posteriores.</li>
-<li><code>m_hat</code>, <code>u_hat</code> y <code>pi_hat</code> se
-calculan como resúmenes puntuales de la posterior, usando
-promedios.</li>
-<li>Para cada par <code>i</code>, el código vuelve a calcular:
-<ul>
-<li>la evidencia a favor de que sea <em>match</em>;</li>
-<li>la evidencia a favor de que sea <em>non-match</em>.</li>
-</ul></li>
-<li>Luego transforma esas cantidades en una probabilidad posterior:</li>
-</ul>
-<p><span class="math display">\[
-P(Z_i=1 \mid X_i) = \frac{P(Z_i=1, X_i)}{P(Z_i=1, X_i) + P(Z_i=0, X_i)}.
-\]</span></p>
-<ul>
-<li>Esa probabilidad se guarda en <code>pairs$p_match</code>.</li>
-<li>Después se aplica una regla simple de decisión: si
-<code>p_match &gt; 0.5</code>, el par se clasifica como coincidencia
-bayesiana.</li>
-<li>Los pares clasificados como coincidencias se almacenan en
-<code>matches_bayes</code>.</li>
-</ul>
-<p>Obsérvese que aquí se usa una decisión por umbral fijo de 0.5. En una
-aplicación real, ese umbral podría modificarse dependiendo del costo de
-falsos positivos y falsos negativos.</p>
-</div>
+<p>Este bloque de código toma las muestras posteriores generadas por
+STAN y construye estimaciones resumidas para los parámetros y las
+probabilidades de <em>match</em>. Primero,
+<code>rstan::extract(fit)</code> recupera las simulaciones MCMC
+almacenadas en <code>fit</code>. A partir de estas, se calculan
+estimaciones puntuales mediante promedios posteriores:
+<code>m_hat</code> y <code>u_hat</code> como las medias por columna de
+<code>post$m</code> y <code>post$u</code>, respectivamente, y
+<code>pi_hat</code> como la media de <code>post$pi</code>.</p>
+<p>Luego, <code>p_match &lt;- colMeans(post$p_match)</code> calcula,
+para cada par de registros, la probabilidad posterior promedio de ser un
+<em>match</em>, integrando la incertidumbre de los parámetros. Estas
+probabilidades se incorporan al data frame original <code>pairs</code>
+en la columna <code>p_match</code>, y se define una clasificación
+binaria <code>bayes_match</code> asignando 1 a los pares cuya
+probabilidad supera el umbral de 0.5.</p>
+<p>Finalmente, <code>matches_bayes</code> extrae únicamente los pares
+clasificados como coincidencias (<em>matches</em>), conservando los
+identificadores <code>idA</code> e <code>idB</code>. De esta manera, el
+bloque traduce los resultados probabilísticos del modelo bayesiano en
+una decisión concreta de emparejamiento. Obsérvese que aquí se usa una
+decisión por umbral fijo de 0.5. En una aplicación real, ese umbral
+podría modificarse dependiendo del costo de falsos positivos y falsos
+negativos.</p>
 </div>
 <div id="comparación-entre-métodos" class="section level2">
-<h2>10. Comparación entre métodos</h2>
+<h2>Comparación entre métodos</h2>
 <p>El script termina juntando los resultados de <code>fastLink</code> y
 del procedimiento bayesiano para compararlos en una misma tabla.</p>
-<pre class="r"><code>############################################################
-# 10. Comparar métodos
-############################################################
-
-matches_fastlink$fastlink &lt;- 1
+<pre class="r"><code>matches_fastlink$fastlink &lt;- 1
 matches_bayes$bayes &lt;- 1
 
 comparison &lt;- merge(
@@ -3075,51 +3027,80 @@ comparison &lt;- merge(
   all=TRUE
 )
 
-comparison$fastlink[is.na(comparison$fastlink)] &lt;- 0</code></pre>
-<div id="qué-hace-este-bloque-6" class="section level3">
-<h3>¿Qué hace este bloque?</h3>
-<ul>
-<li>Añade una marca a los pares encontrados por cada método.</li>
-<li>Une ambas salidas con <code>merge(..., all = TRUE)</code> para
-conservar tanto coincidencias compartidas como exclusivas de cada
-procedimiento.</li>
-<li>Reemplaza los valores faltantes de <code>fastlink</code> por 0
-cuando un par no fue detectado por ese método.</li>
-</ul>
-<p>Aunque el script mostrado termina aquí, el siguiente paso natural
-sería completar también la columna <code>bayes</code> con ceros cuando
-falte y luego calcular medidas de desempeño, por ejemplo:</p>
-<ul>
-<li>número total de coincidencias encontradas por cada método;</li>
-<li>coincidencias en común;</li>
-<li>precisión y sensibilidad respecto de <code>true_match</code>.</li>
-</ul>
-</div>
-</div>
-<div id="lectura-global-del-flujo-del-script" class="section level2">
-<h2>11. Lectura global del flujo del script</h2>
-<p>En conjunto, <code>RecordLinkage.r</code> sigue esta secuencia
-lógica:</p>
-<ol style="list-style-type: decimal">
-<li>limpia el entorno y carga librerías;</li>
-<li>simula dos archivos con coincidencias verdaderas conocidas;</li>
-<li>genera todos los pares posibles;</li>
-<li>construye variables binarias de comparación;</li>
-<li>guarda la verdad simulada para evaluación;</li>
-<li>ejecuta <code>fastLink</code> como referencia;</li>
-<li>especifica un modelo bayesiano de Fellegi-Sunter en STAN;</li>
-<li>ajusta el modelo vía MCMC;</li>
-<li>calcula probabilidades posteriores de <em>match</em>;</li>
-<li>compara los resultados obtenidos por ambos métodos.</li>
-</ol>
-<p>De esta manera, el archivo no sólo implementa un ejemplo práctico de
-<em>record linkage</em>, sino que también conecta claramente tres
-niveles de análisis:</p>
-<ul>
-<li>la simulación de datos;</li>
-<li>la formulación probabilística del problema;</li>
-<li>la implementación computacional de la inferencia bayesiana.</li>
-</ul>
+comparison$fastlink[is.na(comparison$fastlink)] &lt;- 0
+comparison</code></pre>
+<pre><code>##    idA idB fastlink bayes
+## 1    1   1        1     1
+## 2    2   2        1     1
+## 3    3   3        1     1
+## 4    4   4        1     1
+## 5    5   5        1     1
+## 6    6   6        1     1
+## 7    7   7        1     1
+## 8    8   8        1     1
+## 9    9   9        1     1
+## 10  10  10        1     1
+## 11  11  11        1     1
+## 12  12  12        1     1
+## 13  13  13        1     1
+## 14  14  14        1     1
+## 15  15  15        1     1
+## 16  16  16        1     1
+## 17  17  17        1     1
+## 18  18  16        0     1
+## 19  18  18        1     1
+## 20  19  19        1     1
+## 21  20  20        1     1
+## 22  21  21        1     1
+## 23  22  22        1     1
+## 24  23  23        1     1
+## 25  24  24        1     1
+## 26  25  25        1     1
+## 27  26  26        1     1
+## 28  27  27        1     1
+## 29  28  28        1     1
+## 30  29  29        1     1
+## 31  30  30        1     1
+## 32  45  49        0     1</code></pre>
+<p>En este bloque se añaden indicadores que permiten identificar qué
+pares fueron detectados como coincidencias por cada uno de los métodos.
+Luego, ambas salidas se combinan utilizando
+<code>merge(..., all = TRUE)</code>, lo que asegura que se conserven
+tanto las coincidencias compartidas entre métodos como aquellas que son
+exclusivas de cada procedimiento. Tras esta unión, los valores faltantes
+en la columna correspondiente a <code>fastlink</code> se reemplazan por
+0, indicando explícitamente que esos pares no fueron identificados por
+dicho método.</p>
+<p>Aunque el script termina en este punto, el paso siguiente natural
+sería completar también la columna <code>bayes</code> asignando ceros a
+los valores faltantes. Con ambas salidas completamente definidas, es
+posible calcular distintas medidas de desempeño, como el número total de
+coincidencias detectadas por cada método, la cantidad de coincidencias
+en común y métricas como la precisión y la sensibilidad en relación con
+la variable <code>true_match</code>.</p>
+<p>A continuación se muestran los primeros seis registros emparejados
+según el modelo bayesiano en la base de pares de comparación.</p>
+<pre><code>##   idA nombre.x apellido.x edad.x sexo.x idB nombre.y apellido.y edad.y
+## 1   1    Pedro      Gomez     38      M   1    Pedro      Gomez     37
+## 2   2    Pedro     Garcia     44      F   2    Pedro     Garcia     44
+## 3   3   Miguel      Gomez     58      M   3   Miguel      Gomez     58
+## 4   4    Maria      Perez     45      F   4    Maria      Perez     45
+## 5   5   Carlos      Lopez     28      M   5   Carlos      Lopez     29
+## 6   6    Laura      Lopez     26      M   6    Laura      Lopez     25
+##   sexo.y nombre_match apellido_match edad_match sexo_match true_match
+## 1      M            1              1          1          1          1
+## 2      F            1              1          1          1          1
+## 3      M            1              1          1          1          1
+## 4      F            1              1          1          1          1
+## 5      M            1              1          1          1          1
+## 6      M            1              1          1          1          1
+##              p_match bayes_match
+## 1 0.9343198544006281           1
+## 2 0.9343198544006281           1
+## 3 0.9343198544006281           1
+## 4 0.9343198544006281           1
+## 5 0.9343198544006281           1
+## 6 0.9343198544006281           1</code></pre>
 </div>
 </div>
 

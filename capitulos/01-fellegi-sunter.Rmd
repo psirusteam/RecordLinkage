@@ -263,14 +263,14 @@ $$
 
 Y para todos los pares, tendríamos la siguiente tabla con su interpretación. 
 
-| Par   | Vector $X$ | Peso $W(X)$ | Score final | Interpretación    |
-| ----- | ---------- | ----------- | ----------- | ----------------- |
-| A1–B1 | (1,1,1)    | 7.167       | 5.781       | match casi seguro |
-| A1–B2 | (0,0,0)    | -5.952      | -7.338      | no match          |
-| A1–B3 | (0,0,0)    | -5.952      | -7.338      | no match          |
-| A2–B1 | (0,0,0)    | -5.952      | -7.338      | no match          |
-| A2–B2 | (1,1,0)    | **2.836**   | **1.450**   | match probable    |
-| A2–B3 | (0,0,0)    | -5.952      | -7.338      | no match          |
+| Par   | Vector $X$ | Peso $W(X)$ | Interpretación    |
+| ----- | ---------- | ----------- | ----------------- |
+| A1–B1 | (1,1,1)    | 7.167       | match casi seguro |
+| A1–B2 | (0,0,0)    | -5.952      | no match          |
+| A1–B3 | (0,0,0)    | -5.952      | no match          |
+| A2–B1 | (0,0,0)    | -5.952      | no match          |
+| A2–B2 | (1,1,0)    | **2.836**   | match probable    |
+| A2–B3 | (0,0,0)    | -5.952      | no match          |
 
 Ahora, desde un punto de vista probabilístico, también se obtienen las mismas conslusiones. En efecto, para el par A2-B2, se obtiene que:
 

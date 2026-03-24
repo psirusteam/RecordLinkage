@@ -2161,7 +2161,6 @@ interpretación.</p>
 <th>Par</th>
 <th>Vector <span class="math inline">\(X\)</span></th>
 <th>Peso <span class="math inline">\(W(X)\)</span></th>
-<th>Score final</th>
 <th>Interpretación</th>
 </tr>
 </thead>
@@ -2170,42 +2169,36 @@ interpretación.</p>
 <td>A1–B1</td>
 <td>(1,1,1)</td>
 <td>7.167</td>
-<td>5.781</td>
 <td>match casi seguro</td>
 </tr>
 <tr class="even">
 <td>A1–B2</td>
 <td>(0,0,0)</td>
 <td>-5.952</td>
-<td>-7.338</td>
 <td>no match</td>
 </tr>
 <tr class="odd">
 <td>A1–B3</td>
 <td>(0,0,0)</td>
 <td>-5.952</td>
-<td>-7.338</td>
 <td>no match</td>
 </tr>
 <tr class="even">
 <td>A2–B1</td>
 <td>(0,0,0)</td>
 <td>-5.952</td>
-<td>-7.338</td>
 <td>no match</td>
 </tr>
 <tr class="odd">
 <td>A2–B2</td>
 <td>(1,1,0)</td>
 <td><strong>2.836</strong></td>
-<td><strong>1.450</strong></td>
 <td>match probable</td>
 </tr>
 <tr class="even">
 <td>A2–B3</td>
 <td>(0,0,0)</td>
 <td>-5.952</td>
-<td>-7.338</td>
 <td>no match</td>
 </tr>
 </tbody>
@@ -2723,20 +2716,20 @@ posible match o non-match. A continuación se observan lo primeros
 registros de la tabla de datos que contiene los pares de
 comparación.</p>
 <pre class="r"><code>head(pairs)</code></pre>
-<pre><code>##   idA nombre.x apellido.x edad.x sexo.x idB nombre.y apellido.y edad.y
-## 1   1    Pedro      Gomez     38      M   1    Pedro      Gomez     37
-## 2   2    Pedro     Garcia     44      F   1    Pedro      Gomez     37
-## 3   3   Miguel      Gomez     58      M   1    Pedro      Gomez     37
-## 4   4    Maria      Perez     45      F   1    Pedro      Gomez     37
-## 5   5   Carlos      Lopez     28      M   1    Pedro      Gomez     37
-## 6   6    Laura      Lopez     26      M   1    Pedro      Gomez     37
-##   sexo.y
-## 1      M
-## 2      M
-## 3      M
-## 4      M
-## 5      M
-## 6      M</code></pre>
+<pre><code>##   idA nombre.x apellido.x edad.x sexo.x idB
+## 1   1    Pedro      Gomez     38      M   1
+## 2   2    Pedro     Garcia     44      F   1
+## 3   3   Miguel      Gomez     58      M   1
+## 4   4    Maria      Perez     45      F   1
+## 5   5   Carlos      Lopez     28      M   1
+## 6   6    Laura      Lopez     26      M   1
+##   nombre.y apellido.y edad.y sexo.y
+## 1    Pedro      Gomez     37      M
+## 2    Pedro      Gomez     37      M
+## 3    Pedro      Gomez     37      M
+## 4    Pedro      Gomez     37      M
+## 5    Pedro      Gomez     37      M
+## 6    Pedro      Gomez     37      M</code></pre>
 </div>
 <div id="construcción-de-las-variables-de-comparación" class="section level2">
 <h2>Construcción de las variables de comparación</h2>
@@ -2763,13 +2756,20 @@ una misma unidad (match) o no (non-match).</p>
 <p>A continuación se observan lo primeros registros de la matriz de
 comparación.</p>
 <pre class="r"><code>head(X)</code></pre>
-<pre><code>##      nombre_match apellido_match edad_match sexo_match
-## [1,]            1              1          1          1
-## [2,]            1              0          0          0
-## [3,]            0              1          0          1
-## [4,]            0              0          0          0
-## [5,]            0              0          0          1
-## [6,]            0              0          0          1</code></pre>
+<pre><code>##      nombre_match apellido_match edad_match
+## [1,]            1              1          1
+## [2,]            1              0          0
+## [3,]            0              1          0
+## [4,]            0              0          0
+## [5,]            0              0          0
+## [6,]            0              0          0
+##      sexo_match
+## [1,]          1
+## [2,]          0
+## [3,]          1
+## [4,]          0
+## [5,]          1
+## [6,]          1</code></pre>
 </div>
 <div id="definición-de-las-entidades-emparejadas" class="section level2">
 <h2>Definición de las entidades emparejadas</h2>
@@ -3080,27 +3080,34 @@ en común y métricas como la precisión y la sensibilidad en relación con
 la variable <code>true_match</code>.</p>
 <p>A continuación se muestran los primeros seis registros emparejados
 según el modelo bayesiano en la base de pares de comparación.</p>
-<pre><code>##   idA nombre.x apellido.x edad.x sexo.x idB nombre.y apellido.y edad.y
-## 1   1    Pedro      Gomez     38      M   1    Pedro      Gomez     37
-## 2   2    Pedro     Garcia     44      F   2    Pedro     Garcia     44
-## 3   3   Miguel      Gomez     58      M   3   Miguel      Gomez     58
-## 4   4    Maria      Perez     45      F   4    Maria      Perez     45
-## 5   5   Carlos      Lopez     28      M   5   Carlos      Lopez     29
-## 6   6    Laura      Lopez     26      M   6    Laura      Lopez     25
-##   sexo.y nombre_match apellido_match edad_match sexo_match true_match
-## 1      M            1              1          1          1          1
-## 2      F            1              1          1          1          1
-## 3      M            1              1          1          1          1
-## 4      F            1              1          1          1          1
-## 5      M            1              1          1          1          1
-## 6      M            1              1          1          1          1
-##              p_match bayes_match
-## 1 0.9343198544006281           1
-## 2 0.9343198544006281           1
-## 3 0.9343198544006281           1
-## 4 0.9343198544006281           1
-## 5 0.9343198544006281           1
-## 6 0.9343198544006281           1</code></pre>
+<pre><code>##   idA nombre.x apellido.x edad.x sexo.x idB
+## 1   1    Pedro      Gomez     38      M   1
+## 2   2    Pedro     Garcia     44      F   2
+## 3   3   Miguel      Gomez     58      M   3
+## 4   4    Maria      Perez     45      F   4
+## 5   5   Carlos      Lopez     28      M   5
+## 6   6    Laura      Lopez     26      M   6
+##   nombre.y apellido.y edad.y sexo.y nombre_match
+## 1    Pedro      Gomez     37      M            1
+## 2    Pedro     Garcia     44      F            1
+## 3   Miguel      Gomez     58      M            1
+## 4    Maria      Perez     45      F            1
+## 5   Carlos      Lopez     29      M            1
+## 6    Laura      Lopez     25      M            1
+##   apellido_match edad_match sexo_match
+## 1              1          1          1
+## 2              1          1          1
+## 3              1          1          1
+## 4              1          1          1
+## 5              1          1          1
+## 6              1          1          1
+##   true_match            p_match bayes_match
+## 1          1 0.9348257360474781           1
+## 2          1 0.9348257360474781           1
+## 3          1 0.9348257360474781           1
+## 4          1 0.9348257360474781           1
+## 5          1 0.9348257360474781           1
+## 6          1 0.9348257360474781           1</code></pre>
 </div>
 </div>
 

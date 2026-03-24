@@ -1,4 +1,4 @@
-# Implementación bayesiana paso a paso
+## Implementación bayesiana paso a paso
 
 En este capítulo se describe el archivo `FellegiSunter.r` en bloques lógicos para mostrar qué hace cada parte del código y por qué es necesaria dentro de un flujo simple de *record linkage* bayesiano. 
 
@@ -8,7 +8,7 @@ En una siguiente etapa, se ejecuta `fastLink` como punto de referencia y, en par
 
 De esta forma, el archivo no solo implementa un ejemplo práctico de *record linkage*, sino que también articula claramente tres niveles de análisis: la simulación de datos, la formulación probabilística del problema y la implementación computacional de la inferencia bayesiana.
 
-## Carga de librerías y configuración inicial
+### Carga de librerías y configuración inicial
 
 El script comienza limpiando el entorno de trabajo, cargando las librerías necesarias y definiendo algunas opciones para que STAN pueda compilar y ejecutar el modelo de manera más eficiente.
 
@@ -29,7 +29,7 @@ El código comienza limpiando el entorno de trabajo mediante la función `rm(lis
 
 Posteriormente, se configuran algunas opciones clave para mejorar la eficiencia y reproducibilidad del análisis. La instrucción `rstan_options(auto_write = TRUE)` permite reutilizar archivos compilados por STAN, reduciendo significativamente los tiempos de ejecución en corridas posteriores. Por su parte, `options(mc.cores = parallel::detectCores())` habilita el uso de todos los núcleos disponibles del procesador, lo que facilita la ejecución paralela de múltiples cadenas MCMC. Finalmente, `set.seed(123)` fija la semilla aleatoria, garantizando que los resultados obtenidos puedan reproducirse exactamente en futuras ejecuciones.
 
-## Construcción de los listados que serán emparejados
+### Construcción de los listados que serán emparejados
 
 Luego se generan dos listas de registros. La base `A` representa un primer archivo y la base `B` un segundo archivo. Una parte de `B` se construye para que contenga coincidencias reales con `A`, mientras que otra parte agrega registros extra que no necesariamente tienen correspondencia. Es decir, se construye un conjunto de datos sintético que simula dos bases de información a ser vinculadas. Primero se define el tamaño de ambas listas, donde `A` contiene 50 registros y `B` contiene 60. Luego se crean catálogos simples de nombres, apellidos y sexo, los cuales sirven como insumos para generar variables de identificación. A partir de estos catálogos, se construye la base `A` como un conjunto de datos sintético que incluye un identificador único, nombre, apellido, edad y sexo para cada individuo.
 
@@ -87,7 +87,7 @@ head(A)
 head(B)
 ```
 
-## Generación de todos los pares posibles
+### Generación de todos los pares posibles
 
 Una vez construidas las dos bases, el siguiente paso es formar el producto cartesiano entre `A` y `B`, es decir, todos los pares candidato que podrían compararse.
 
@@ -104,7 +104,7 @@ Este paso es fundamental porque transforma el problema original de enlazar dos a
 head(pairs)
 ```
 
-## Construcción de las variables de comparación
+### Construcción de las variables de comparación
 
 Después de formar todos los pares, el código compara campo por campo para resumir el nivel de acuerdo entre los registros. Estas comparaciones son justamente las variables que alimentan el modelo de Fellegi-Sunter.
 
@@ -134,7 +134,7 @@ A continuación se observan lo primeros registros de la matriz de comparación.
 head(X)
 ```
 
-## Definición de las entidades emparejadas
+### Definición de las entidades emparejadas
 
 En este paso se construye una variable que identifica cuáles pares son verdaderamente coincidencias. Esta variable no se usa para ajustar el modelo bayesiano. Su función es servir como referencia para evaluar el desempeño del método una vez que se haya estimado.
 
@@ -149,7 +149,7 @@ Se asigna el valor 1 a aquellos pares que cumplen simultáneamente dos condicion
 
 Todos los demás pares que no satisfacen estas condiciones se marcan con 0, de modo que esta variable indica de manera clara cuáles pares corresponden a coincidencias verdaderas y cuáles no.
 
-## Aplicación de `fastLink`
+### Aplicación de `fastLink`
 
 Antes de ajustar el modelo en STAN, el script ejecuta el paquete `fastLink` como punto de comparación.
 
@@ -188,7 +188,7 @@ head(matches_fastlink)
 
 En el contexto del script, este bloque es clave porque permite contrastar dos enfoques distintos: por un lado, el uso de un método ya implementado en un paquete especializado, y por otro, una implementación explícita del modelo bayesiano en STAN.
 
-## Modelo Fellegi-Sunter bayesiano en Stan
+### Modelo Fellegi-Sunter bayesiano en Stan
 
 El núcleo conceptual del script aparece cuando se define el modelo probabilístico en lenguaje STAN. Este bloque traduce la idea del modelo de Fellegi-Sunter a una formulación que puede estimarse por MCMC.
 
@@ -281,7 +281,7 @@ Finalmente, para cada par de registros se calcula la probabilidad posterior de q
 
 Adicionalmente, el código transforma estas cantidades desde la escala logarítmica a probabilidades y calcula, para cada par, la probabilidad posterior de ser un *match* como una razón entre ambas hipótesis. El resultado se almacena en el vector `p_match`, de modo que en cada iteración de STAN se obtiene una estimación probabilística completa para todos los pares, incorporando la incertidumbre de los parámetros del modelo.
 
-## Ajuste del modelo
+### Ajuste del modelo
 
 Una vez especificado el modelo, el script prepara los datos en una lista y llama a STAN para estimar la distribución posterior de los parámetros.
 
@@ -305,7 +305,7 @@ El objeto `data_list` se encarga de empaquetar toda la información en el format
 
 En este contexto, `iter = 2000` define el número de iteraciones que se ejecutan en cada cadena, mientras que `chains = 4` indica que se corren cuatro cadenas independientes, lo cual es clave para evaluar la convergencia del algoritmo. Además, el argumento `seed = 123` garantiza la reproducibilidad de los resultados. Como salida, el objeto `fit` contiene las muestras posteriores de los parámetros `m`, `u` y `pi`, que son fundamentales para el análisis del modelo.
 
-## Cálculo de la probabilidad posterior de *match*
+### Cálculo de la probabilidad posterior de *match*
 
 Después del ajuste, el script extrae los parámetros estimados y calcula, para cada par, una probabilidad posterior de coincidencia.
 
@@ -329,7 +329,7 @@ Luego, `p_match <- colMeans(post$p_match)` calcula, para cada par de registros, 
 
 Finalmente, `matches_bayes` extrae únicamente los pares clasificados como coincidencias (*matches*), conservando los identificadores `idA` e `idB`. De esta manera, el bloque traduce los resultados probabilísticos del modelo bayesiano en una decisión concreta de emparejamiento. Obsérvese que aquí se usa una decisión por umbral fijo de 0.5. En una aplicación real, ese umbral podría modificarse dependiendo del costo de falsos positivos y falsos negativos.
 
-## Comparación entre métodos
+### Comparación entre métodos
 
 El script termina juntando los resultados de `fastLink` y del procedimiento bayesiano para compararlos en una misma tabla.
 

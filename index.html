@@ -1570,6 +1570,8 @@ apellido y fecha de nacimiento ) y <span class="math inline">\(X_i =
 (1,1,0)\)</span>, es porque, para ese par específico hay coincidencia en
 las primeras dos variables (nombre y apellido), pero no en la última
 (fecha de nacimiento).</p>
+<div id="enfoque-probabilístico" class="section level2">
+<h2>Enfoque probabilístico</h2>
 <p>En las aplicaciones prácticas nunca sabremos si una entidad en una
 lista realmente coincide con otra entidad en otra lista, por eso es
 necesario crear una variable latente que pueda modelar este proceso de
@@ -1715,8 +1717,8 @@ P(X|Z=0) =
 \prod_{k=1}^{K}
 u_k^{X_k}(1-u_k)^{1-X_k}
 \]</span></p>
-<div id="la-razón-de-verosimilitudes-como-regla-decisión" class="section level2">
-<h2>La razón de verosimilitudes como regla decisión</h2>
+<div id="la-razón-de-verosimilitudes-como-regla-decisión" class="section level3">
+<h3>La razón de verosimilitudes como regla decisión</h3>
 <p>Desde un punto de vista frecuentista, el estadístico central del
 modelo de Fellegi-Sunter es la razón de verosimilitudes, dada por la
 siguiente expresión</p>
@@ -1806,8 +1808,8 @@ y <span class="math inline">\(T_M\)</span> permite equilibrar estos
 errores y establecer un compromiso entre la tasa de clasificaciones
 automáticas y la necesidad de revisión manual de los pares ambiguos.</p>
 </div>
-<div id="probabilidad-posterior-de-emparejamiento" class="section level2">
-<h2>Probabilidad posterior de emparejamiento</h2>
+<div id="probabilidad-posterior-de-emparejamiento" class="section level3">
+<h3>Probabilidad posterior de emparejamiento</h3>
 <p>El objetivo del modelo es calcular la probabilidad de que el par sea
 un match dado el patrón observado de coincidencias en la variables de
 comparación. Esto se expresa como</p>
@@ -1858,8 +1860,8 @@ el par sea un match y corresponde a la base del modelo probabilístico de
 <strong>Fellegi–Sunter</strong> y de muchos algoritmos modernos de
 record linkage.</p>
 </div>
-<div id="ejemplo" class="section level2">
-<h2>Ejemplo</h2>
+<div id="ejemplo" class="section level3">
+<h3>Ejemplo</h3>
 <p>Supongamos que tenemos dos listas, como se describe a
 continuación:</p>
 <table>
@@ -2284,8 +2286,8 @@ múltiples variables de comparación y técnicas computacionales que
 permiten realizar estos cálculos de manera eficiente.</p>
 </div>
 </div>
-<div id="inferencia-bayesiana" class="section level1">
-<h1>Inferencia bayesiana</h1>
+<div id="inferencia-bayesiana" class="section level2">
+<h2>Inferencia bayesiana</h2>
 <p>La inferencia bayesiana constituye un marco general para realizar
 inferencia estadística a partir de datos observados y conocimiento
 previo sobre los parámetros de interés. El punto de partida es la
@@ -2306,8 +2308,8 @@ distribución posterior no puede obtenerse de forma analítica, por lo que
 se recurre a métodos computacionales, como los algoritmos de simulación
 tipo Markov Chain Monte Carlo (MCMC), para aproximarla y realizar
 inferencias sobre los parámetros del modelo.</p>
-<div id="verosimilitud-del-modelo" class="section level2">
-<h2>Verosimilitud del modelo</h2>
+<div id="verosimilitud-del-modelo" class="section level3">
+<h3>Verosimilitud del modelo</h3>
 <p>Sea <span class="math inline">\(Z_i\)</span>_la variable latente que
 indica si el par <span class="math inline">\(i\)</span> corresponde a un
 <em>match</em> o a un <em>non-match</em>. En el modelo se asume que esta
@@ -2433,8 +2435,8 @@ el cual implementa funciones especializadas para evaluar expresiones de
 este tipo evitando problemas de precisión numérica y permitiendo estimar
 eficientemente los parámetros del modelo.</p>
 </div>
-<div id="distribuciones-previas" class="section level2">
-<h2>Distribuciones previas</h2>
+<div id="distribuciones-previas" class="section level3">
+<h3>Distribuciones previas</h3>
 <p>En un enfoque completamente bayesiano, la incertidumbre acerca de la
 localización de los parámetros que gobiernan el modelo probabilístico se
 trata como una variable aleatoria y por tanto se asignan distribuciones
@@ -2512,8 +2514,8 @@ matches.</td>
 </tbody>
 </table>
 </div>
-<div id="distribución-posterior" class="section level2">
-<h2>Distribución Posterior</h2>
+<div id="distribución-posterior" class="section level3">
+<h3>Distribución Posterior</h3>
 <p>Una vez definidas la verosimilitud del modelo y las distribuciones
 previas de los parámetros, la inferencia bayesiana se centra en la
 distribución posterior, que combina la información de los datos con el
@@ -2543,8 +2545,8 @@ registros, calcular probabilidades posteriores de coincidencia, y tomar
 decisiones basadas en un marco probabilístico sólido y coherente.</p>
 </div>
 </div>
-<div id="implementación-bayesiana-paso-a-paso" class="section level1">
-<h1>Implementación bayesiana paso a paso</h1>
+<div id="implementación-bayesiana-paso-a-paso" class="section level2">
+<h2>Implementación bayesiana paso a paso</h2>
 <p>En este capítulo se describe el archivo <code>FellegiSunter.r</code>
 en bloques lógicos para mostrar qué hace cada parte del código y por qué
 es necesaria dentro de un flujo simple de <em>record linkage</em>
@@ -2568,8 +2570,8 @@ obtenidos por ambos enfoques.</p>
 niveles de análisis: la simulación de datos, la formulación
 probabilística del problema y la implementación computacional de la
 inferencia bayesiana.</p>
-<div id="carga-de-librerías-y-configuración-inicial" class="section level2">
-<h2>Carga de librerías y configuración inicial</h2>
+<div id="carga-de-librerías-y-configuración-inicial" class="section level3">
+<h3>Carga de librerías y configuración inicial</h3>
 <p>El script comienza limpiando el entorno de trabajo, cargando las
 librerías necesarias y definiendo algunas opciones para que STAN pueda
 compilar y ejecutar el modelo de manera más eficiente.</p>
@@ -2604,8 +2606,8 @@ ejecución paralela de múltiples cadenas MCMC. Finalmente,
 los resultados obtenidos puedan reproducirse exactamente en futuras
 ejecuciones.</p>
 </div>
-<div id="construcción-de-los-listados-que-serán-emparejados" class="section level2">
-<h2>Construcción de los listados que serán emparejados</h2>
+<div id="construcción-de-los-listados-que-serán-emparejados" class="section level3">
+<h3>Construcción de los listados que serán emparejados</h3>
 <p>Luego se generan dos listas de registros. La base <code>A</code>
 representa un primer archivo y la base <code>B</code> un segundo
 archivo. Una parte de <code>B</code> se construye para que contenga
@@ -2694,8 +2696,8 @@ listados.</p>
 ## 5   5 Carlos    Lopez   29    M
 ## 6   6  Laura    Lopez   25    M</code></pre>
 </div>
-<div id="generación-de-todos-los-pares-posibles" class="section level2">
-<h2>Generación de todos los pares posibles</h2>
+<div id="generación-de-todos-los-pares-posibles" class="section level3">
+<h3>Generación de todos los pares posibles</h3>
 <p>Una vez construidas las dos bases, el siguiente paso es formar el
 producto cartesiano entre <code>A</code> y <code>B</code>, es decir,
 todos los pares candidato que podrían compararse.</p>
@@ -2731,8 +2733,8 @@ comparación.</p>
 ## 5    Pedro      Gomez     37      M
 ## 6    Pedro      Gomez     37      M</code></pre>
 </div>
-<div id="construcción-de-las-variables-de-comparación" class="section level2">
-<h2>Construcción de las variables de comparación</h2>
+<div id="construcción-de-las-variables-de-comparación" class="section level3">
+<h3>Construcción de las variables de comparación</h3>
 <p>Después de formar todos los pares, el código compara campo por campo
 para resumir el nivel de acuerdo entre los registros. Estas
 comparaciones son justamente las variables que alimentan el modelo de
@@ -2771,8 +2773,8 @@ comparación.</p>
 ## [5,]          1
 ## [6,]          1</code></pre>
 </div>
-<div id="definición-de-las-entidades-emparejadas" class="section level2">
-<h2>Definición de las entidades emparejadas</h2>
+<div id="definición-de-las-entidades-emparejadas" class="section level3">
+<h3>Definición de las entidades emparejadas</h3>
 <p>En este paso se construye una variable que identifica cuáles pares
 son verdaderamente coincidencias. Esta variable no se usa para ajustar
 el modelo bayesiano. Su función es servir como referencia para evaluar
@@ -2791,8 +2793,8 @@ en que se construyó la correspondencia entre <code>A</code> y
 con 0, de modo que esta variable indica de manera clara cuáles pares
 corresponden a coincidencias verdaderas y cuáles no.</p>
 </div>
-<div id="aplicación-de-fastlink" class="section level2">
-<h2>Aplicación de <code>fastLink</code></h2>
+<div id="aplicación-de-fastlink" class="section level3">
+<h3>Aplicación de <code>fastLink</code></h3>
 <p>Antes de ajustar el modelo en STAN, el script ejecuta el paquete
 <code>fastLink</code> como punto de comparación.</p>
 <p>En primer lugar, es necesario asegurar que cada variable sea
@@ -2817,8 +2819,8 @@ contrastar dos enfoques distintos: por un lado, el uso de un método ya
 implementado en un paquete especializado, y por otro, una implementación
 explícita del modelo bayesiano en STAN.</p>
 </div>
-<div id="modelo-fellegi-sunter-bayesiano-en-stan" class="section level2">
-<h2>Modelo Fellegi-Sunter bayesiano en Stan</h2>
+<div id="modelo-fellegi-sunter-bayesiano-en-stan" class="section level3">
+<h3>Modelo Fellegi-Sunter bayesiano en Stan</h3>
 <p>El núcleo conceptual del script aparece cuando se define el modelo
 probabilístico en lenguaje STAN. Este bloque traduce la idea del modelo
 de Fellegi-Sunter a una formulación que puede estimarse por MCMC.</p>
@@ -2952,8 +2954,8 @@ en cada iteración de STAN se obtiene una estimación probabilística
 completa para todos los pares, incorporando la incertidumbre de los
 parámetros del modelo.</p>
 </div>
-<div id="ajuste-del-modelo" class="section level2">
-<h2>Ajuste del modelo</h2>
+<div id="ajuste-del-modelo" class="section level3">
+<h3>Ajuste del modelo</h3>
 <p>Una vez especificado el modelo, el script prepara los datos en una
 lista y llama a STAN para estimar la distribución posterior de los
 parámetros.</p>
@@ -2973,8 +2975,8 @@ reproducibilidad de los resultados. Como salida, el objeto
 <code>m</code>, <code>u</code> y <code>pi</code>, que son fundamentales
 para el análisis del modelo.</p>
 </div>
-<div id="cálculo-de-la-probabilidad-posterior-de-match" class="section level2">
-<h2>Cálculo de la probabilidad posterior de <em>match</em></h2>
+<div id="cálculo-de-la-probabilidad-posterior-de-match" class="section level3">
+<h3>Cálculo de la probabilidad posterior de <em>match</em></h3>
 <p>Después del ajuste, el script extrae los parámetros estimados y
 calcula, para cada par, una probabilidad posterior de coincidencia.</p>
 <pre class="r"><code>post &lt;- rstan::extract(fit)
@@ -3013,8 +3015,8 @@ decisión por umbral fijo de 0.5. En una aplicación real, ese umbral
 podría modificarse dependiendo del costo de falsos positivos y falsos
 negativos.</p>
 </div>
-<div id="comparación-entre-métodos" class="section level2">
-<h2>Comparación entre métodos</h2>
+<div id="comparación-entre-métodos" class="section level3">
+<h3>Comparación entre métodos</h3>
 <p>El script termina juntando los resultados de <code>fastLink</code> y
 del procedimiento bayesiano para compararlos en una misma tabla.</p>
 <pre class="r"><code>matches_fastlink$fastlink &lt;- 1
@@ -3108,6 +3110,7 @@ según el modelo bayesiano en la base de pares de comparación.</p>
 ## 4          1 0.9348257360474781           1
 ## 5          1 0.9348257360474781           1
 ## 6          1 0.9348257360474781           1</code></pre>
+</div>
 </div>
 </div>
 

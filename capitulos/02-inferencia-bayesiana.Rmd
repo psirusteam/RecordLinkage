@@ -1,10 +1,10 @@
-# Inferencia bayesiana
+## Inferencia bayesiana
 
 La inferencia bayesiana constituye un marco general para realizar inferencia estadística a partir de datos observados y conocimiento previo sobre los parámetros de interés. El punto de partida es la especificación de la verosimilitud del modelo, es decir, la distribución de probabilidad que describe cómo se generan los datos en función de un conjunto de parámetros desconocidos. Esta verosimilitud resume el mecanismo probabilístico que conecta el modelo con la información empírica disponible y representa la contribución de los datos al proceso de inferencia.
 
 Una vez definida la verosimilitud, se deben establecer distribuciones previas para los parámetros del modelo, las cuales reflejan el conocimiento o las creencias existentes antes de observar los datos. La combinación de la verosimilitud con estas distribuciones previas, mediante el teorema de Bayes, permite obtener la distribución posterior, que representa la distribución de probabilidad de los parámetros condicionada a los datos observados. En muchos modelos de interés la distribución posterior no puede obtenerse de forma analítica, por lo que se recurre a métodos computacionales, como los algoritmos de simulación tipo Markov Chain Monte Carlo (MCMC), para aproximarla y realizar inferencias sobre los parámetros del modelo.
 
-## Verosimilitud del modelo
+### Verosimilitud del modelo
 
 Sea $Z_i$_la variable latente que indica si el par $i$ corresponde a un *match* o a un *non-match*. En el modelo se asume que esta variable sigue una distribución Bernoulli con probabilidad $\pi$ de que el par corresponda a la misma persona:
 
@@ -111,7 +111,7 @@ Para facilitar la estimación del modelo, resulta conveniente trabajar en escala
 
 Esta última expresión corresponde precisamente al tipo de funciones que se utilizan en la implementación computacional del modelo. En particular, la estructura $\log\left[\exp(\cdot)+\exp(\cdot)\right]$ es evaluada mediante transformaciones numéricamente estables. Este tipo de cálculos es el que emplea el software de inferencia bayesiana STAN, el cual implementa funciones especializadas para evaluar expresiones de este tipo evitando problemas de precisión numérica y permitiendo estimar eficientemente los parámetros del modelo.
 
-## Distribuciones previas
+### Distribuciones previas
 
 En un enfoque completamente bayesiano, la incertidumbre acerca de la localización de los parámetros que gobiernan el modelo probabilístico se trata como una variable aleatoria y por tanto se asignan distribuciones previas a cada uno de ellos. En el modelo de Fellegi–Sunter, los parámetros principales son $m_k$, la probabilidad de acuerdo entre registros verdaderamente coincidentes; $u_k$, la probabilidad de acuerdo entre registros que no corresponden a la misma entidad; $\pi$, la proporción de pares que corresponden a verdaderas coincidencias en el conjunto de comparaciones.
 
@@ -140,7 +140,7 @@ Estas distribuciones previas permiten incorporar conocimiento previo sobre la ca
 | \(\pi\)   | \(Beta(2,8)\)      | Baja proporción de verdaderos matches en el conjunto de pares. |
 | \(\pi\)   | \(Beta(5,5)\)      | Prior poco informativa, refleja incertidumbre sobre la proporción de matches. |
 
-## Distribución Posterior 
+### Distribución Posterior 
 
 Una vez definidas la verosimilitud del modelo y las distribuciones previas de los parámetros, la inferencia bayesiana se centra en la distribución posterior, que combina la información de los datos con el conocimiento previo. Formalmente, al asumir independencia entre los parámetros, la distribución posterior se obtiene aplicando la regla de Bayes, de la siguiente forma:
 

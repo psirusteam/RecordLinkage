@@ -23,6 +23,8 @@ X_{ik} =
 
 Por ejemplo, si se consideran tres variables de comparación (nombre, apellido y fecha de nacimiento ) y $X_i = (1,1,0)$, es porque, para ese par específico hay coincidencia en las primeras dos variables (nombre y apellido), pero no en la última (fecha de nacimiento).
 
+## Enfoque probabilístico
+
 En las aplicaciones prácticas nunca sabremos si una entidad en una lista realmente coincide con otra entidad en otra lista, por eso es necesario crear una variable latente que pueda modelar este proceso de identificación. De esta forma, para cada par, introducimos la variable no observable, $Z_i$, definida así:
 
 \[
@@ -94,7 +96,7 @@ P(X|Z=0) =
 u_k^{X_k}(1-u_k)^{1-X_k}
 $$
 
-## La razón de verosimilitudes como regla decisión
+### La razón de verosimilitudes como regla decisión
 
 Desde un punto de vista frecuentista, el estadístico central del modelo de Fellegi-Sunter es la razón de verosimilitudes, dada por la siguiente expresión
 
@@ -154,7 +156,7 @@ La presencia de una región intermedia responde al hecho de que, en algunos caso
 
 La elección de los umbrales $T_U$ y $T_M$ permite equilibrar estos errores y establecer un compromiso entre la tasa de clasificaciones automáticas y la necesidad de revisión manual de los pares ambiguos.
 
-## Probabilidad posterior de emparejamiento
+### Probabilidad posterior de emparejamiento
 
 El objetivo del modelo es calcular la probabilidad de que el par sea un match dado el patrón observado de coincidencias en la variables de comparación. Esto se expresa como
 
@@ -193,7 +195,7 @@ P(Z=1|X)=
 
 Si el patrón observado es mucho más probable bajo el modelo de match, entonces $P(Z=1|X)$ será cercano a 1; si el patrón es más probable bajo el modelo de no-match, la probabilidad posterior será cercana a 0. Este cálculo permite transformar el patrón de coincidencias entre registros en una probabilidad cuantitativa de que el par sea un match y corresponde a la base del modelo probabilístico de **Fellegi–Sunter** y de muchos algoritmos modernos de record linkage.
 
-## Ejemplo
+### Ejemplo
 
 Supongamos que tenemos dos listas, como se describe a continuación:
 

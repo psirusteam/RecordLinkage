@@ -1,0 +1,279 @@
+# Record Linkage con Errores de Medición
+
+El problema de *record linkage* consiste en determinar si dos registros provenientes de diferentes fuentes corresponden a la misma entidad. Recordemos que $Z \in \{0,1\}$ es una variable latente tal que:
+
+$$
+Z =
+\begin{cases}
+1 & \text{si el par corresponde a la misma entidad (match)} \\
+0 & \text{si el par corresponde a distintas entidades (no match)}
+\end{cases}
+$$
+
+con $P(Z=1)=\pi$. Además, para cada variable $k=1,\dots,K$, se define una variable observable de comparación entre registros de ambas listas:
+
+$$
+X_k =
+\begin{cases}
+1 & \text{si hay acuerdo entre los registros} \\
+0 & \text{si hay desacuerdo}
+\end{cases}
+$$
+
+El objetivo es derivar la razón de verosimilitudes $P(X \mid Z=1)/P(X \mid Z=0)$ a partir de un modelo generativo con errores de medición.
+
+## Modelo de Copas-Hilton (1990)
+
+En esta formulación, el modelo clásico de record linkage se obtiene como una marginalización de un modelo generativo con errores de medición. En este escenario, los parámetros $m_k$ y $u_k$ no son primitivos, sino funciones de la calidad de medición y la distribución del error en las variables consideradas. 
+
+Sea $Y_k$ el valor verdadero (latente) de la variable $k$, el cual no se observa directamente, y cuya distribución poblacional está dada por
+
+$$
+P(Y_k = y) = f_k(y),
+$$
+
+En donde $f_k(\cdot)$ describe la distribución de los valores verdaderos en la población. Suponga ahora que se observa una lista $A$, de modo que para la variable $k$ se registra un valor observado $A_k$, el cual puede diferir del valor verdadero debido a errores de medición.
+
+Condicionando en que el valor verdadero de la variable es $Y_k = y$, el modelo de medición para $A_k$ se define como:
+
+$$
+P(A_k = a \mid Y_k = y) =
+\begin{cases}
+\alpha_k & \text{si } a = y, \\
+(1 - \alpha_k)\, f_k(a) & \text{si } a \neq y.
+\end{cases}
+$$
+
+Es decir, dado que el valor verdadero es $y$, entonces: con probabilidad $\alpha_k$, el proceso de medición es correcto y se observa el mismo valor, es decir, $A_k = y$; además, con probabilidad $1 - \alpha_k$, ocurre un error de medición, por lo que el valor observado $A_k$ toma un valor distinto de $y$.
+
+En este último caso, los posibles valores erróneos se distribuyen según $f_k(a)$, la cual está definida sobre los valores $a \neq y$ y satisface que
+$$
+\sum_{a \neq y} f_k(a) = 1.
+$$
+
+Por tanto, $1 - \alpha_k$ representa la probabilidad total de observar la variable con error, mientras que $f_k(a)$ describe cómo se distribuyen dichos errores entre las categorías posibles.
+
+Consideremos un ejemplo sencillo para ilustrar el modelo de error de medición en el caso discreto. Suponga que la variable verdadera toma valores en el conjunto
+
+$$
+Y_k \in \{1,2,3\},
+$$
+
+y que para una unidad específica se tiene que el valor verdadero es $Y_k = 2$. Además, suponga que la probabilidad de observar correctamente el valor verdadero es $\alpha_k = 0.8$. Esto significa que, con probabilidad 0.8, el valor observado coincide con el verdadero.
+
+Cuando ocurre un error, lo cual sucede con probabilidad $1 - \alpha_k = 0.2$, el valor observado se genera según una distribución discreta $f_k(a)$ definida únicamente sobre los valores incorrectos. En este ejemplo, asumimos:
+
+$$
+f_k(a) =
+\begin{cases}
+0.6 & \text{si } a = 1, \\
+0.4 & \text{si } a = 3.
+\end{cases}
+$$
+
+Es decir, dado que ocurrió un error, el valor observado será 1 con probabilidad 0.6 y 3 con probabilidad 0.4. Bajo este esquema, la distribución condicional de $A_k \mid Y_k = 2$ queda dada por:
+
+$$
+P(A_k = a \mid Y_k = 2) =
+\begin{cases}
+0.8 & \text{si } a = 2, \\
+0.2 \cdot 0.6 = 0.12 & \text{si } a = 1, \\
+0.2 \cdot 0.4 = 0.08 & \text{si } a = 3.
+\end{cases}
+$$
+
+En otras palabras, el valor observado coincide con el verdadero con alta probabilidad, mientras que los errores se distribuyen entre las otras categorías según $f_k(a)$. Finalmente, se verifica rápidamente que esta es una distribución de probabilidad válida, puesto que $0.8 + 0.12 + 0.08 = 1$. Esto confirma que el modelo está correctamente normalizado, ya que la probabilidad total sobre todos los valores posibles de $A_k$ es igual a uno.
+
+### Formulación con dos listas
+
+Sea $A$ y $B$ dos listas que contienen registros de unidades, y sea $A_k$ y $B_k$ los valores observados de la variable $k$ en cada una de ellas. Como se ha definido a lo largo de este documento, para modelar la relación entre los registros de ambas listas, se introduce una variable indicadora $Z$ ($Z = 1$ indica que los registros corresponden a la misma unidad, mientras que $Z = 0$ indica que corresponden a unidades distintas).
+
+La estructura del modelo de Copas-Hilton depende crucialmente del valor de $Z$. Cuando $Z = 1$, se asume que ambos registros provienen de la misma unidad en la población, por lo que comparten un mismo valor verdadero latente para la variable $k$. En este caso, si denotamos por $Y_k^{(A)}$ y $Y_k^{(B)}$ como los valores verdaderos asociados a los registros en las listas $A$ y $B$, respectivamente, se tiene que ambos coinciden y pueden representarse mediante una única variable latente $Y_k$, es decir,
+
+$$
+Y_k^{(A)} = Y_k^{(B)} = Y_k.
+$$
+Esto refleja que cualquier discrepancia entre $A_k$ y $B_k$ se debe exclusivamente a errores de medición y no a diferencias reales en el valor subyacente.
+
+Por el contrario, cuando $Z = 0$, los registros en $A$ y $B$ corresponden a unidades distintas de la población. En este caso, no existe razón para suponer que los valores verdaderos estén relacionados, por lo que se modelan como variables independientes. Es decir, los valores verdaderos $Y_k^{(A)}$ y $Y_k^{(B)}$ se generan de manera independiente según la distribución poblacional de la variable, lo cual se expresa como $Y_k^{(A)} \perp Y_k^{(B)}$.
+
+Esta distinción entre los casos $Z = 1$ y $Z = 0$ es fundamental, ya que define la estructura probabilística de esta formulación al problema de *record linkage*, permitiendo diferenciar entre coincidencias reales y coincidencias espurias a partir de los valores observados.
+
+### Probabilidades de coincidencia 
+
+Para calcular la probabilidad de coincidencia entre $A_k$ y $B_k$ condicionada en un valor verdadero $Y_k = y$, es necesario analizar los distintos mecanismos a través de los cuales puede ocurrir el evento $A_k = B_k$. En este contexto, el modelo asume que cada registro puede observar correctamente el valor verdadero con probabilidad $\alpha_k$, o bien cometer un error con probabilidad $1 - \alpha_k$, en cuyo caso el valor observado se genera según la distribución marginal $f_k(\cdot)$.
+
+Bajo este esquema, el evento $A_k = B_k$ puede darse esencialmente de dos formas. La primera corresponde al caso en que ambos registros observan correctamente el valor verdadero (**hit-hit**). En este escenario, tanto $A_k$ como $B_k$ toman el valor $y$, y dado que los errores son independientes entre fuentes, la probabilidad de este evento es:
+
+$$
+P(A_k = y, B_k = y \mid Y_k = y) = \alpha_k^2
+$$
+
+La segunda posibilidad es que ambos registros cometan un error (**miss-miss**), pero aun así coincidan en el mismo valor incorrecto. Es decir, existe algún valor $a \neq y$ tal que $A_k = a$ y $B_k = a$. En este caso, cada registro falla con probabilidad $1 - \alpha_k$, y luego ambos generan el mismo valor $a$ de acuerdo con la distribución $f_k(a)$. Nuevamente, por independencia, la probabilidad de este evento es:
+
+$$
+P(A_k = a, B_k = a \mid Y_k = y, a \neq y)
+= (1 - \alpha_k)^2 f_k(a)^2
+$$
+
+Para obtener la probabilidad total de coincidencia $P(A_k = B_k \mid Y_k = y)$, se deben sumar todas las formas en que puede ocurrir este evento. Esto incluye tanto el caso en que ambos aciertan como todos los posibles valores incorrectos en los que ambos podrían coincidir. Por lo tanto:
+
+
+\begin{align*}
+P(A_k = B_k \mid Y_k = y)
+&=
+\alpha_k^2
++
+(1 - \alpha_k)^2 \sum_{a \neq y} f_k(a)^2 \\
+&=
+\alpha_k^2
++
+(1 - \alpha_k)^2 \left[\sum_a f_k(a)^2 - f_k(y)^2 \right]
+\end{align*}
+
+
+Lo anterior, puesto que, la suma sobre $a \neq y$ puede reescribirse de manera más conveniente separando el término correspondiente a $y$ de la suma total sobre todos los valores posibles. Ahora, promediando respecto a la distribución de $Y_k$, se obtiene una expresión para la probabilidad marginal de coincidencia bajo el caso $Z=1$. En efecto, se tiene que 
+
+
+\begin{align*}
+P(X_k = 1 \mid Z=1)
+&= P(A_k = B_k \mid Z=1) \\
+&= \sum_y P(A_k = B_k, Y_k = y \mid Z=1) \\
+&= \sum_y P(Y_k = y \mid Z=1)\, P(A_k = B_k \mid Y_k = y, Z=1) \\
+&= \sum_y f_k(y)\, P(A_k = B_k \mid Y_k = y) \\
+\end{align*}
+
+
+Nótese que la última igualdad asume que :
+(i) $P(Y_k = y \mid Z=1) = f_k(y)$, y
+(ii) $P(A_k = B_k \mid Y_k = y, Z=1) = P(A_k = B_k \mid Y_k = y)$.
+
+Sustituyendo la expresión anterior dentro de la suma, obtenemos:
+
+
+\begin{align*}
+P(X_k = 1 \mid Z=1)
+&= \sum_y f_k(y)
+\left[
+\alpha_k^2
++
+(1 - \alpha_k)^2 \left(\sum_a f_k(a)^2 - f_k(y)^2 \right)
+\right] \\
+&= \sum_y f_k(y)\,\alpha_k^2
++
+(1 - \alpha_k)^2
+\sum_y f_k(y)\left(\sum_a f_k(a)^2 - f_k(y)^2 \right) \\
+&= \alpha_k^2 \sum_y f_k(y)
++
+(1 - \alpha_k)^2
+\left[
+\sum_y f_k(y)\sum_a f_k(a)^2
+-
+\sum_y f_k(y)^3
+\right] \\
+&= \alpha_k^2
++
+(1 - \alpha_k)^2
+\left[
+\sum_a f_k(a)^2 \sum_y f_k(y)
+-
+\sum_y f_k(y)^3
+\right] \\
+&= \alpha_k^2
++
+(1 - \alpha_k)^2
+\left[
+\sum_a f_k(a)^2
+-
+\sum_y f_k(y)^3
+\right]
+\end{align*}
+
+
+En la práctica, es común utilizar una aproximación que simplifica esta expresión. En particular, se suele ignorar el término $\sum_y f_k(y)^3$, lo que lleva a la siguiente forma aproximada para la probabilidad de coincidencia en el caso de match:
+
+$$
+m_k = P(X_k = 1 \mid Z=1)
+\approx
+\alpha_k^2 + (1 - \alpha_k)^2 \sum_y f_k(y)^2
+$$
+
+Por otro lado, también se quiere derivar la probabilidad de coincidencia dado que los registros no corresponden a la misma unidad. Es decir:
+
+$$
+u_k = P(X_k = 1 \mid Z=0) = P(A_k = B_k)
+$$
+
+Teniendo en cuenta que, bajo $Z=0$, los registros son independientes y que, bajo el modelo de medición, se asume que tanto $A_k$ como $B_k$ siguen la misma distribución marginal ($P(A_k = a) = P(B_k = a) = f_k(a)$), podemos expresar esta probabilidad como la suma sobre todos los posibles valores $a$. Así:
+
+
+\begin{align*}
+P(A_k = B_k)
+&= \sum_a P(A_k = a, B_k = a) \\
+&= \sum_a P(A_k = a)\, P(B_k = a) \\
+&= \sum_a f_k(a)\, f_k(a) \\
+&= \sum_a f_k(a)^2
+\end{align*}
+
+
+Por lo tanto, obtenemos:
+
+$$
+u_k = P(X_k = 1 \mid Z=0) = \sum_a f_k(a)^2
+$$
+
+El término $\sum_a f_k(a)^2$ puede interpretarse como la probabilidad de que dos valores independientes, generados desde la misma distribución $f_k$, coincidan por azar.
+
+### Razón de verosimilitudes
+
+Partiendo de la variable indicadora $X_k$, que toma valor 1 si hay acuerdo en el campo $k$ y 0 en caso contrario, se tiene que, luego de marginalizar la variable latente $Y_k$, la distribución de $X_k$ condicional en el estado de enlace $Z$ toma una forma Bernoulli. En particular, cuando los registros corresponden a la misma unidad ($Z=1$), la probabilidad de acuerdo está dada por $m_k$, por lo que:
+
+$$
+P(X_k = x_k \mid Z=1)
+= m_k^{x_k}(1 - m_k)^{1 - x_k}.
+$$
+
+De manera análoga, cuando los registros no corresponden a la misma unidad ($Z=0$), la probabilidad de acuerdo está dada por $u_k$, y por tanto:
+
+$$
+P(X_k = x_k \mid Z=0)
+= u_k^{x_k}(1 - u_k)^{1 - x_k}.
+$$
+
+Acudiendo al supuesto de independencia condicional entre los campos, dado el estado de enlace $Z$, el vector de comparaciones $X = (X_1, \dots, X_K)$ se tiene que:
+
+$$
+P(X \mid Z) = \prod_{k=1}^K P(X_k \mid Z).
+$$
+
+Este supuesto permite construir la razón de verosimilitudes, que compara la evidencia a favor de que un par de registros corresponda a la misma unidad frente a que no lo sea. Esta razón está definida como:
+
+$$
+\Lambda(X) = \frac{P(X \mid Z=1)}{P(X \mid Z=0)}.
+$$
+
+Sustituyendo las expresiones anteriores para cada componente $X_k$, obtenemos una forma multiplicativa:
+
+$$
+\Lambda(X)
+=
+\prod_{k=1}^K
+\left(\frac{m_k}{u_k}\right)^{x_k}
+\left(\frac{1 - m_k}{1 - u_k}\right)^{1 - x_k}.
+$$
+
+Finalmente, para facilitar la interpretación y el cálculo, es común trabajar con el logaritmo de la razón de verosimilitudes. Al tomar logaritmos, el producto se transforma en una suma:
+
+$$
+\log \Lambda(X)
+=
+\sum_{k=1}^K
+\left[
+x_k \log\left(\frac{m_k}{u_k}\right)
++
+(1 - x_k)\log\left(\frac{1 - m_k}{1 - u_k}\right)
+\right].
+$$
+
+Esta última expresión es especialmente útil, ya que muestra que la evidencia total a favor del enlace es la suma de contribuciones aditivas de cada campo, lo que constituye la base de los métodos clásicos de clasificación en record linkage probabilístico.
+

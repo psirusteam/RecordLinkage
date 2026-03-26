@@ -22,7 +22,7 @@ $$
 
 El objetivo es derivar la razón de verosimilitudes $P(X \mid Z=1)/P(X \mid Z=0)$ a partir de un modelo generativo con errores de medición.
 
-## Modelo de Copas-Hilton (1990)
+## Modelo de variables latentes
 
 En esta formulación, el modelo clásico de record linkage se obtiene como una marginalización de un modelo generativo con errores de medición. En este escenario, los parámetros $m_k$ y $u_k$ no son primitivos, sino funciones de la calidad de medición y la distribución del error en las variables consideradas. 
 

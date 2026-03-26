@@ -222,7 +222,13 @@ $$
 u_k = P(X_k = 1 \mid Z=0) = \sum_a f_k(a)^2
 $$
 
-El término $\sum_a f_k(a)^2$ puede interpretarse como la probabilidad de que dos valores independientes, generados desde la misma distribución $f_k$, coincidan por azar.
+El término $\sum_a f_k(a)^2$ puede interpretarse como la probabilidad de que dos valores independientes, generados desde la misma distribución $f_k$, coincidan por azar. Nótese que este término se puede conectar con la anterior expresión para $m_k$, por lo tanto:
+
+$$
+m_k 
+\approx
+\alpha_k^2 + (1 - \alpha_k)^2 u_k
+$$
 
 ### Razón de verosimilitudes
 

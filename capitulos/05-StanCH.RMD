@@ -1,0 +1,280 @@
+## Implementación bayesiana del modelo Copas-Hilton en STAN
+
+En este capítulo se describe el archivo `2.CopasHiltonBayes.R` en bloques lógicos para explicar qué hace cada parte del script y por qué cada componente es necesario dentro del flujo de *record linkage* bayesiano con la formulación de Copas-Hilton.
+
+A diferencia del esquema más simple de Fellegi-Sunter, aquí los parámetros de acuerdo en *matches* y *non-matches* no se modelan de manera completamente libre. En su lugar, se introduce una estructura generativa que conecta la calidad de medición (`alpha`) y la distribución de categorías verdaderas (`f_k`) con las probabilidades de acuerdo `m_k` y `u_k`.
+
+### Carga de librerías y configuración inicial
+
+El script inicia limpiando el entorno, cargando `rstan` y configurando opciones de compilación/ejecución para STAN.
+
+```{r ch-stan-paso-1-librerias, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+rm(list = ls())
+
+library(rstan)
+
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+
+set.seed(123)
+```
+
+Se limpia la sesión para evitar contaminación por objetos previos, se habilita el guardado de modelos compilados (`auto_write`) y se usan todos los núcleos disponibles para correr cadenas MCMC en paralelo. La semilla fija permite reproducibilidad.
+
+### Construcción de las listas A y B
+
+Se crean dos bases sintéticas. La base `A` representa el primer listado. La base `B` contiene una parte de coincidencias verdaderas con `A` y una parte adicional sin correspondencia forzada.
+
+```{r ch-stan-paso-2-listas, echo=TRUE}
+nA <- 50
+nB <- 60
+
+nombres <- c("Juan","Maria","Pedro","Ana","Luis","Carlos",
+             "Lucia","Jorge","Sofia","Miguel","Laura")
+
+apellidos <- c("Gomez","Perez","Rodriguez","Lopez","Garcia")
+
+sexos <- c("M","F")
+
+A <- data.frame(
+  idA = 1:nA,
+  nombre = sample(nombres,nA,replace=TRUE),
+  apellido = sample(apellidos,nA,replace=TRUE),
+  edad = sample(20:60,nA,replace=TRUE),
+  sexo = sample(sexos,nA,replace=TRUE)
+)
+
+n_match_true <- 30
+
+B_match <- data.frame(
+  idB = 1:n_match_true,
+  nombre = A$nombre[1:n_match_true],
+  apellido = A$apellido[1:n_match_true],
+  edad = A$edad[1:n_match_true] + sample(c(-1,0,1),n_match_true,replace=TRUE),
+  sexo = A$sexo[1:n_match_true]
+)
+
+B_extra <- data.frame(
+  idB = (n_match_true+1):nB,
+  nombre = sample(nombres,nB-n_match_true,replace=TRUE),
+  apellido = sample(apellidos,nB-n_match_true,replace=TRUE),
+  edad = sample(20:60,nB-n_match_true,replace=TRUE),
+  sexo = sample(sexos,nB-n_match_true,replace=TRUE)
+)
+
+B <- rbind(B_match,B_extra)
+```
+
+Este diseño crea un escenario controlado: se conoce qué pares son verdaderamente *match* y qué pares no lo son.
+
+### Generación de todos los pares candidatos
+
+Se construye el producto cartesiano entre `A` y `B`, es decir, todos los pares posibles.
+
+```{r ch-stan-paso-3-pares, echo=TRUE}
+pairs <- merge(A,B,by=NULL)
+N <- nrow(pairs)
+```
+
+Con esto, el problema de enlazar listas se vuelve un problema de clasificar pares.
+
+### Variables de comparación
+
+Para cada par se crean indicadores binarios de acuerdo campo a campo.
+
+```{r ch-stan-paso-4-comparaciones, echo=TRUE}
+pairs$nombre_match <- ifelse(pairs$nombre.x == pairs$nombre.y,1,0)
+pairs$apellido_match <- ifelse(pairs$apellido.x == pairs$apellido.y,1,0)
+pairs$edad_match <- ifelse(abs(pairs$edad.x - pairs$edad.y)<=1,1,0)
+pairs$sexo_match <- ifelse(pairs$sexo.x == pairs$sexo.y,1,0)
+
+X <- as.matrix(pairs[,c(
+  "nombre_match",
+  "apellido_match",
+  "edad_match",
+  "sexo_match"
+)])
+
+K <- ncol(X)
+```
+
+La matriz `X` es la entrada principal del modelo bayesiano: cada fila resume la evidencia de un par.
+
+### Construcción de conteos para estimar \(f_k\)
+
+Aquí aparece el bloque distintivo de Copas-Hilton: se construyen conteos por categoría para cada variable. Estos conteos alimentan priors Dirichlet sobre la distribución poblacional de categorías `f_k`.
+
+```{r ch-stan-paso-5-conteos, echo=TRUE}
+build_counts <- function(vecA, vecB){
+  tab <- table(c(vecA, vecB))
+  list(
+    values = names(tab),
+    counts = as.integer(tab)
+  )
+}
+
+c1 <- build_counts(A$nombre, B$nombre)
+c2 <- build_counts(A$apellido, B$apellido)
+c3 <- build_counts(A$edad, B$edad)
+c4 <- build_counts(A$sexo, B$sexo)
+
+counts_list <- list(c1, c2, c3, c4)
+
+# Número de categorías distintas en cada variable
+C <- sapply(counts_list, function(x) length(x$counts))
+# Número máximo de categorías distintas en cada variable
+C_max <- max(C)
+
+counts_mat <- matrix(0, K, C_max)
+
+for(k in 1:K){
+  counts_mat[k,1:C[k]] <- counts_list[[k]]$counts
+}
+```
+
+- `C[k]` guarda cuántas categorías reales tiene la variable `k`.
+- `C_max` permite trabajar con arreglos rectangulares en STAN.
+- `counts_mat` almacena los conteos observados por variable y categoría.
+
+### Variable de verdad para evaluación
+
+Se construye la etiqueta de verdad del par (solo para evaluar desempeño, no para entrenar).
+
+```{r ch-stan-paso-6-verdad, echo=TRUE}
+pairs$true_match <- ifelse(
+  pairs$idA <= n_match_true &
+    pairs$idB == pairs$idA,
+  1,0)
+```
+
+### Especificación del modelo STAN (Copas-Hilton Full Bayes)
+
+Este bloque define el modelo probabilístico completo:
+
+1. `alpha[k]`: calidad de medición por variable.
+2. `f[k]`: distribución de categorías latentes por variable (simplex).
+3. `u[k] = sum_y f_k(y)^2`: acuerdo por azar entre no-coincidencias.
+4. `m[k] = alpha[k]^2 + (1-alpha[k])^2 u[k]`: acuerdo entre coincidencias bajo error de medición.
+
+```{r ch-stan-paso-7-modelo, echo=TRUE}
+stan_code <- "
+data {
+  int<lower=1> N;
+  int<lower=1> K;
+  int<lower=1> C[K];
+  int<lower=1> C_max;
+  int<lower=0> counts[K, C_max];
+  int<lower=0,upper=1> X[N,K];
+}
+
+parameters {
+  vector<lower=0,upper=1>[K] alpha;
+  simplex[C_max] f[K];
+  real<lower=0,upper=1> pi;
+}
+
+transformed parameters {
+  vector[K] u;
+  vector[K] m;
+
+  for (k in 1:K) {
+
+    // u_k = sum f_k(y)^2 (solo categorias reales)
+    u[k] = dot_self(f[k][1:C[k]]);
+
+    // m_k segun Copas-Hilton
+    m[k] = square(alpha[k]) + square(1 - alpha[k]) * u[k];
+  }
+}
+
+model {
+
+  // Priors
+  alpha ~ beta(8,2);
+  pi ~ beta(1,50);
+
+  // f_k con Dirichlet + datos (conjugado)
+  for (k in 1:K) {
+
+    vector[C_max] alpha_dir;
+
+    // evitar masa en categorias inexistentes
+    alpha_dir = rep_vector(1e-10, C_max);
+
+    for (c in 1:C[k]) {
+      alpha_dir[c] = 1 + counts[k,c];
+    }
+
+    f[k] ~ dirichlet(alpha_dir);
+  }
+
+  // Likelihood de linkage
+  for (i in 1:N) {
+
+    real log_m = log(pi);
+    real log_u = log1m(pi);
+
+    for (k in 1:K) {
+      log_m += bernoulli_lpmf(X[i,k] | m[k]);
+      log_u += bernoulli_lpmf(X[i,k] | u[k]);
+    }
+
+    target += log_sum_exp(log_m, log_u);
+  }
+}
+
+generated quantities {
+  vector[N] p_match;
+
+  for (i in 1:N) {
+
+    real log_m = log(pi);
+    real log_u = log1m(pi);
+
+    for (k in 1:K) {
+      log_m += bernoulli_lpmf(X[i,k] | m[k]);
+      log_u += bernoulli_lpmf(X[i,k] | u[k]);
+    }
+
+    p_match[i] = inv_logit(log_m - log_u);
+  }
+}
+"
+```
+
+### Ajuste del modelo
+
+Se compila y ajusta el modelo, pasando todos los insumos preparados.
+
+```{r ch-stan-paso-8-ajuste, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+fit <- stan(
+  model_code = stan_code,
+  data = list(
+    N=N,
+    K=K,
+    C=C,
+    C_max=C_max,
+    counts=counts_mat,
+    X=X
+  ),
+  iter = 1000,
+  chains = 1,
+  seed = 123
+)
+
+print(fit, pars=c("alpha","pi","u","m"))
+```
+
+### Resultados e identificación de matches
+
+Finalmente se extraen probabilidades posteriores de *match* y se define una regla de decisión (umbral 0.8).
+
+```{r ch-stan-paso-9-resultados, echo=TRUE}
+post <- rstan::extract(fit)
+pairs$p_match <- colMeans(post$p_match)
+pairs$bayes_match <- ifelse(pairs$p_match > 0.8,1,0)
+
+table(pairs$bayes_match, pairs$true_match)
+```
+
+La tabla final permite comparar clasificación bayesiana vs. verdad simulada.

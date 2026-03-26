@@ -1,0 +1,117 @@
+## Inferencia bayesiana en el modelo Copas-Hilton
+
+La inferencia bayesiana en *record linkage* permite combinar evidencia observada en los pares de registros con supuestos previos sobre la calidad de medición y la frecuencia esperada de coincidencias reales. En el enfoque de Copas-Hilton, esta combinación es especialmente útil porque conecta explícitamente el modelo de comparación (
+`X`) con un mecanismo generativo de error de medición.
+
+A diferencia de una parametrización completamente libre de \(m_k\) y \(u_k\), aquí se asume que ambas cantidades se derivan de parámetros con interpretación sustantiva:
+
+- \(\alpha_k\): probabilidad de observar correctamente el valor verdadero en el campo \(k\).
+- \(f_k(y)\): distribución poblacional de categorías del campo \(k\).
+
+Con ello, el modelo obtiene:
+
+\[
+u_k = \sum_y f_k(y)^2
+\]
+
+\[
+m_k = \alpha_k^2 + (1-\alpha_k)^2 u_k,
+\]
+
+donde \(u_k\) representa el acuerdo por azar entre registros distintos y \(m_k\) el acuerdo esperado entre registros verdaderamente coincidentes bajo error de medición.
+
+### Verosimilitud del modelo
+
+Sea \(Z_i \in \{0,1\}\) la variable latente para el par \(i\), con:
+
+\[
+Z_i \sim \text{Bernoulli}(\pi).
+\]
+
+Condicionalmente en \(Z_i\), cada comparación binaria \(X_{ik}\) se modela como Bernoulli:
+
+\[
+X_{ik} \mid Z_i = 1 \sim \text{Bernoulli}(m_k),
+\qquad
+X_{ik} \mid Z_i = 0 \sim \text{Bernoulli}(u_k).
+\]
+
+Bajo independencia condicional entre campos dado \(Z_i\):
+
+\[
+P(X_i \mid Z_i=1)=\prod_{k=1}^K m_k^{X_{ik}}(1-m_k)^{1-X_{ik}},
+\]
+
+\[
+P(X_i \mid Z_i=0)=\prod_{k=1}^K u_k^{X_{ik}}(1-u_k)^{1-X_{ik}}.
+\]
+
+Marginalizando \(Z_i\), para cada par:
+
+\[
+P(X_i)=\pi P(X_i\mid Z_i=1)+(1-\pi)P(X_i\mid Z_i=0).
+\]
+
+Y para \(N\) pares independientes:
+
+\[
+P(X\mid \alpha,f,\pi)=\prod_{i=1}^N \left[\pi P(X_i\mid Z_i=1)+(1-\pi)P(X_i\mid Z_i=0)\right],
+\]
+
+con la dependencia de \(m_k\) y \(u_k\) inducida por \((\alpha_k,f_k)\).
+
+En la implementación STAN, esta verosimilitud se calcula en escala logarítmica usando `log_sum_exp`, lo cual mejora la estabilidad numérica.
+
+### Distribuciones previas
+
+En el script `2.CopasHiltonBayes.R`, las distribuciones previas son:
+
+\[
+\alpha_k \sim \text{Beta}(8,2),
+\qquad
+\pi \sim \text{Beta}(1,50).
+\]
+
+- La prior de \(\alpha_k\) favorece valores altos de calidad de medición.
+- La prior de \(\pi\) favorece una fracción pequeña de *matches* en el total de pares.
+
+Para cada variable \(k\), la distribución categórica \(f_k\) se modela con una prior Dirichlet informada por conteos observados:
+
+\[
+f_k \sim \text{Dirichlet}(1 + \text{counts}_{k1}, \dots, 1 + \text{counts}_{kC_k}).
+\]
+
+Esto equivale a una actualización conjugada que incorpora la frecuencia empírica de categorías en ambas listas, estabilizando la inferencia de \(u_k\).
+
+### Distribución posterior
+
+La posterior conjunta queda, en forma proporcional:
+
+\[
+P(\alpha,f,\pi \mid X,\text{counts}) \propto
+P(X \mid \alpha,f,\pi)
+\,P(\alpha)
+\,P(f\mid \text{counts})
+\,P(\pi).
+\]
+
+Esta distribución no tiene forma cerrada simple, por lo que se aproxima con MCMC (NUTS/HMC en STAN). A partir de las muestras posteriores se obtienen:
+
+1. Resúmenes de \(\alpha\), \(\pi\), \(u\), \(m\).
+2. Probabilidades posteriores de *match* por par:
+
+\[
+P(Z_i=1\mid X_i) = \text{logit}^{-1}(\log p_i^{(m)}-\log p_i^{(u)}),
+\]
+
+que en el código se almacenan como `p_match[i]` en `generated quantities`.
+
+### Interpretación práctica
+
+El enfoque Copas-Hilton aporta una capa adicional de interpretación respecto al modelo estándar:
+
+- Se distingue explícitamente entre calidad de medición (`alpha`) y acuerdo por azar (`u`).
+- Se incorpora información de frecuencia de categorías mediante priors Dirichlet con conteos.
+- Se obtienen probabilidades posteriores de enlace coherentes con un mecanismo generativo de error.
+
+En consecuencia, el modelo no solo clasifica pares, sino que también permite razonar sobre *por qué* existe acuerdo entre campos: por verdadera coincidencia, por buena calidad de medición o por coincidencia azarosa en categorías frecuentes.

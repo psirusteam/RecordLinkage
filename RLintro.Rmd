@@ -53,5 +53,5 @@ En síntesis, este repositorio debe entenderse como una especie de cuaderno de t
 ```{r child='capitulos/03-Stan.Rmd'}
 ```
 
-```{r child='capitulos/04-CopasHilton.Rmd'}
+```{r child='capitulos/04-ErroresMedicion.Rmd'}
 ```

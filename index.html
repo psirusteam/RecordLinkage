@@ -3089,27 +3089,34 @@ según el modelo bayesiano en la base de pares de comparación.</p>
 ## 4   4    Maria      Perez     45      F   4
 ## 5   5   Carlos      Lopez     28      M   5
 ## 6   6    Laura      Lopez     26      M   6
-##   nombre.y apellido.y edad.y sexo.y nombre_match
-## 1    Pedro      Gomez     37      M            1
-## 2    Pedro     Garcia     44      F            1
-## 3   Miguel      Gomez     58      M            1
-## 4    Maria      Perez     45      F            1
-## 5   Carlos      Lopez     29      M            1
-## 6    Laura      Lopez     25      M            1
-##   apellido_match edad_match sexo_match
-## 1              1          1          1
-## 2              1          1          1
-## 3              1          1          1
-## 4              1          1          1
-## 5              1          1          1
-## 6              1          1          1
-##   true_match            p_match bayes_match
-## 1          1 0.9348257360474781           1
-## 2          1 0.9348257360474781           1
-## 3          1 0.9348257360474781           1
-## 4          1 0.9348257360474781           1
-## 5          1 0.9348257360474781           1
-## 6          1 0.9348257360474781           1</code></pre>
+##   nombre.y apellido.y edad.y sexo.y
+## 1    Pedro      Gomez     37      M
+## 2    Pedro     Garcia     44      F
+## 3   Miguel      Gomez     58      M
+## 4    Maria      Perez     45      F
+## 5   Carlos      Lopez     29      M
+## 6    Laura      Lopez     25      M
+##   nombre_match apellido_match edad_match
+## 1            1              1          1
+## 2            1              1          1
+## 3            1              1          1
+## 4            1              1          1
+## 5            1              1          1
+## 6            1              1          1
+##   sexo_match true_match            p_match
+## 1          1          1 0.9343198544006291
+## 2          1          1 0.9343198544006291
+## 3          1          1 0.9343198544006291
+## 4          1          1 0.9343198544006291
+## 5          1          1 0.9343198544006291
+## 6          1          1 0.9343198544006291
+##   bayes_match
+## 1           1
+## 2           1
+## 3           1
+## 4           1
+## 5           1
+## 6           1</code></pre>
 </div>
 </div>
 </div>
@@ -3139,8 +3146,8 @@ X_k =
 \]</span></p>
 <p>El objetivo es derivar la razón de verosimilitudes <span class="math inline">\(P(X \mid Z=1)/P(X \mid Z=0)\)</span> a partir de
 un modelo generativo con errores de medición.</p>
-<div id="modelo-de-copas-hilton-1990" class="section level2">
-<h2>Modelo de Copas-Hilton (1990)</h2>
+<div id="modelo-de-variables-latentes" class="section level2">
+<h2>Modelo de variables latentes</h2>
 <p>En esta formulación, el modelo clásico de record linkage se obtiene
 como una marginalización de un modelo generativo con errores de
 medición. En este escenario, los parámetros <span class="math inline">\(m_k\)</span> y <span class="math inline">\(u_k\)</span> no son primitivos, sino funciones de
@@ -3309,8 +3316,11 @@ el término correspondiente a <span class="math inline">\(y\)</span> de
 la suma total sobre todos los valores posibles. Ahora, promediando
 respecto a la distribución de <span class="math inline">\(Y_k\)</span>,
 se obtiene una expresión para la probabilidad marginal de coincidencia
-bajo el caso <span class="math inline">\(Z=1\)</span>. En efecto, se
-tiene que</p>
+bajo el caso <span class="math inline">\(Z=1\)</span>. En efecto,
+suponiendo que <span class="math inline">\(P(Y_k = y \mid Z=1) =
+f_k(y)\)</span>, y que <span class="math inline">\(P(A_k = B_k \mid Y_k
+= y, Z=1) = P(A_k = B_k \mid Y_k = y)\)</span>, entonces se tiene
+que</p>
 <p><span class="math display">\[\begin{align*}
 P(X_k = 1 \mid Z=1)
 &amp;= P(A_k = B_k \mid Z=1) \\
@@ -3318,10 +3328,8 @@ P(X_k = 1 \mid Z=1)
 &amp;= \sum_y P(Y_k = y \mid Z=1)\, P(A_k = B_k \mid Y_k = y, Z=1) \\
 &amp;= \sum_y f_k(y)\, P(A_k = B_k \mid Y_k = y) \\
 \end{align*}\]</span></p>
-<p>Nótese que la última igualdad asume que : (i) <span class="math inline">\(P(Y_k = y \mid Z=1) = f_k(y)\)</span>, y (ii)
-<span class="math inline">\(P(A_k = B_k \mid Y_k = y, Z=1) = P(A_k = B_k
-\mid Y_k = y)\)</span>.</p>
-<p>Sustituyendo la expresión anterior dentro de la suma, obtenemos:</p>
+<p>Ahora, sustituyendo la expresión anterior dentro de la suma,
+obtenemos:</p>
 <p><span class="math display">\[\begin{align*}
 P(X_k = 1 \mid Z=1)
 &amp;= \sum_y f_k(y)
@@ -3392,7 +3400,13 @@ u_k = P(X_k = 1 \mid Z=0) = \sum_a f_k(a)^2
 \]</span></p>
 <p>El término <span class="math inline">\(\sum_a f_k(a)^2\)</span> puede
 interpretarse como la probabilidad de que dos valores independientes,
-generados desde la misma distribución <span class="math inline">\(f_k\)</span>, coincidan por azar.</p>
+generados desde la misma distribución <span class="math inline">\(f_k\)</span>, coincidan por azar. Nótese que este
+término se puede conectar con la anterior expresión para <span class="math inline">\(m_k\)</span>, por lo tanto:</p>
+<p><span class="math display">\[
+m_k
+\approx
+\alpha_k^2 + (1 - \alpha_k)^2 u_k
+\]</span></p>
 </div>
 <div id="razón-de-verosimilitudes" class="section level3">
 <h3>Razón de verosimilitudes</h3>

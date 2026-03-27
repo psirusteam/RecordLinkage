@@ -132,8 +132,7 @@ P(A_k = B_k \mid Y_k = y)
 \end{align*}
 
 
-Lo anterior, puesto que, la suma sobre $a \neq y$ puede reescribirse de manera más conveniente separando el término correspondiente a $y$ de la suma total sobre todos los valores posibles. Ahora, promediando respecto a la distribución de $Y_k$, se obtiene una expresión para la probabilidad marginal de coincidencia bajo el caso $Z=1$. En efecto, se tiene que 
-
+Lo anterior, puesto que, la suma sobre $a \neq y$ puede reescribirse de manera más conveniente separando el término correspondiente a $y$ de la suma total sobre todos los valores posibles. Ahora, promediando respecto a la distribución de $Y_k$, se obtiene una expresión para la probabilidad marginal de coincidencia bajo el caso $Z=1$. En efecto, suponiendo que $P(Y_k = y \mid Z=1) = f_k(y)$, y que $P(A_k = B_k \mid Y_k = y, Z=1) = P(A_k = B_k \mid Y_k = y)$, entonces se tiene que 
 
 \begin{align*}
 P(X_k = 1 \mid Z=1)
@@ -143,13 +142,7 @@ P(X_k = 1 \mid Z=1)
 &= \sum_y f_k(y)\, P(A_k = B_k \mid Y_k = y) \\
 \end{align*}
 
-
-Nótese que la última igualdad asume que :
-(i) $P(Y_k = y \mid Z=1) = f_k(y)$, y
-(ii) $P(A_k = B_k \mid Y_k = y, Z=1) = P(A_k = B_k \mid Y_k = y)$.
-
-Sustituyendo la expresión anterior dentro de la suma, obtenemos:
-
+Ahora, sustituyendo la expresión anterior dentro de la suma, obtenemos:
 
 \begin{align*}
 P(X_k = 1 \mid Z=1)
@@ -206,7 +199,6 @@ $$
 
 Teniendo en cuenta que, bajo $Z=0$, los registros son independientes y que, bajo el modelo de medición, se asume que tanto $A_k$ como $B_k$ siguen la misma distribución marginal ($P(A_k = a) = P(B_k = a) = f_k(a)$), podemos expresar esta probabilidad como la suma sobre todos los posibles valores $a$. Así:
 
-
 \begin{align*}
 P(A_k = B_k)
 &= \sum_a P(A_k = a, B_k = a) \\
@@ -214,7 +206,6 @@ P(A_k = B_k)
 &= \sum_a f_k(a)\, f_k(a) \\
 &= \sum_a f_k(a)^2
 \end{align*}
-
 
 Por lo tanto, obtenemos:
 
